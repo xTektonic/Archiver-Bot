@@ -1,6 +1,6 @@
 # Archiver-Bot
 
-Archiver-Bot is a Discord workflow bot for a single archive guild. The rewrite stores runtime state in local JSON files under `ARCHIVER_DATA_DIR` instead of keeping mutable state in tracked repository files.
+Archiver-Bot is a Discord workflow bot for a single archive guild. It manages archive submissions, approval flows, moderation helpers, archive parsing, and routine forum maintenance.
 
 ## Runtime Data
 
@@ -46,7 +46,7 @@ Required environment variables:
 - [Configuration](docs/configuration.md)
 - [Runtime State](docs/runtime-state.md)
 - [Deployment](docs/deployment.md)
-- [Testing](docs/testing.md)
+- [Developer Checks](docs/testing.md)
 - [Commands and Syncing](docs/commands.md)
 - [Parser](docs/parser.md)
 - [Operational Runbook](docs/runbook.md)

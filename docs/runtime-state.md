@@ -1,8 +1,8 @@
 # Runtime State
 
-Runtime state is stored in local JSON files through `StateStore`.
+Runtime state is local JSON managed by `src/storage/state_store.py`.
 
-## Directory Layout
+## Files
 
 ```text
 ARCHIVER_DATA_DIR/
@@ -11,57 +11,38 @@ ARCHIVER_DATA_DIR/
   backups/
 ```
 
-Default local path:
+`data/` is ignored for local development. Production should normally use `/var/lib/archiver-bot`.
 
-```text
-./data
-```
+## State Contents
 
-The repository ignores `data/`, so Git updates should not overwrite runtime state.
+`state.json` stores:
 
-## State Shape
+- blocked DM user IDs
+- tracker summary message IDs
+- accepted submission entries
+- last archive thread ID
+- tracked submissions
+- pending approvals
+- command change log entries
 
-```json
-{
-  "version": 1,
-  "blocked_dm_users": [],
-  "tracker_summary_message_ids": [],
-  "accepted_submission_entries": [],
-  "last_archive_thread_id": null,
-  "tracked_submissions": {},
-  "pending_approvals": {},
-  "command_change_log": []
-}
-```
+## Write Behavior
 
-## Write Safety
+`StateStore`:
 
-`StateStore` uses:
+- serializes writes with an async lock
+- validates state by round-tripping through `BotState`
+- writes to a temp file
+- atomically replaces `state.json`
+- creates `parsed/` and `backups/`
 
-- one in-process async lock
-- validation before save
-- temp-file write
-- atomic replace
-- backup support before migrations
+Run only one bot process against a state directory.
 
-This is enough for a single bot process on one AWS server. Do not run multiple bot processes against the same state file.
+## Import Files
 
-## Legacy Import
-
-On first initialization, if `state.json` does not exist, `StateStore` tries to import:
+If `state.json` does not exist, startup can import:
 
 - `blacklist.json`
 - `messages.json`
 - `accepted.json`
 
-For production migration, preserve the live copies of those files before deploying the rewrite. If needed, place them in the working directory for the first boot so they can be imported into `state.json`.
-
-## Backups
-
-Backups are written to:
-
-```text
-ARCHIVER_DATA_DIR/backups/
-```
-
-Before changing the state schema in the future, add migration logic and create a backup first.
+Use this only for bootstrapping existing production state.

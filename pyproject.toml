@@ -11,8 +11,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest==8.4.1",
-    "pytest-asyncio==1.0.0",
     "ruff==0.12.2",
     "mypy==1.16.1",
 ]
@@ -34,11 +32,6 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]
 ignore = ["E501"]
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-testpaths = ["tests"]
-pythonpath = ["src"]
 
 [tool.mypy]
 python_version = "3.12"

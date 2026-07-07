@@ -1,51 +1,28 @@
-# Commands and Syncing
+# Commands
 
-Command descriptions changed during the rewrite. Approved changes are recorded in `COMMAND_CHANGES.md`.
+## Syncing
 
-## Command Sync Options
+`ARCHIVER_SYNC_COMMANDS=true` tells the bot to sync slash and context commands during startup.
 
-### `ARCHIVER_SYNC_COMMANDS=true`
+Use `true` when:
 
-Use this when command definitions changed and Discord needs to receive the new slash/context command tree.
+- command names changed
+- command descriptions changed
+- parameters changed
+- deploying to a new bot application
 
-Best for:
+Use `false` for normal restarts.
 
-- first staging boot
-- first production boot after rewrite
-- intentional command name/description/parameter changes
-
-Tradeoff:
-
-- startup makes a Discord API sync call
-- repeated unnecessary syncs add noise and may slow startup
-
-### `ARCHIVER_SYNC_COMMANDS=false`
-
-Use this for normal production restarts after commands are already registered.
-
-Best for:
-
-- routine restarts
-- deploys that do not change command definitions
-- reducing startup API activity
-
-Tradeoff:
-
-- command changes will not appear until a sync is run later
-
-## Recommendation
-
-For the rewrite rollout:
+Recommended flow after command changes:
 
 1. Set `ARCHIVER_SYNC_COMMANDS=true`.
-2. Start the bot and confirm commands appear.
-3. Stop the bot.
-4. Set `ARCHIVER_SYNC_COMMANDS=false`.
-5. Restart for normal operation.
+2. Start the bot.
+3. Confirm commands appear in Discord.
+4. Stop the bot.
+5. Set `ARCHIVER_SYNC_COMMANDS=false`.
+6. Start the bot normally.
 
-## Current Command Surfaces
-
-Slash commands:
+## Slash Commands
 
 - `/guild_list`
 - `/leave`
@@ -64,12 +41,10 @@ Slash commands:
 - `/parse_channel`
 - `/parse_archive`
 
-Context menu commands:
+## Context Commands
 
 - `Edit`
 - `Delete`
 - `Publish post`
 - `Append post`
 - `Pin`
-
-Expected local command count after cogs load: `21`.

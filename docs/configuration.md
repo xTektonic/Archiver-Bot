@@ -1,8 +1,8 @@
 # Configuration
 
-Configuration is loaded by `config.settings.load_settings`.
+Configuration is loaded from environment variables and `src/config/settings.py`.
 
-## Environment Variables
+## Environment
 
 ```text
 DISCORD_BOT_TOKEN=required
@@ -10,9 +10,9 @@ ARCHIVER_DATA_DIR=optional, defaults to ./data
 ARCHIVER_SYNC_COMMANDS=optional, defaults to false
 ```
 
-## Discord IDs
+## Guild IDs
 
-Guild-specific IDs live in `src/config/settings.py` as typed dataclasses:
+Edit these dataclasses in `src/config/settings.py` when Discord IDs change:
 
 - `RoleIds`
 - `ChannelIds`
@@ -20,20 +20,13 @@ Guild-specific IDs live in `src/config/settings.py` as typed dataclasses:
 - `CategoryIds`
 - `CopyText`
 
-The bot is intentionally configured for one Discord guild. If a channel, role, category, or tag changes in Discord, update the matching dataclass value.
-
-## Secrets
-
-Only environment variables should contain secrets. Do not commit `.env`, bot tokens, production data, or generated state.
+The bot is built for one guild. Do not add multi-guild abstractions unless the bot actually needs them.
 
 ## Production Defaults
 
-Recommended production environment:
-
 ```text
-DISCORD_BOT_TOKEN=<real token>
 ARCHIVER_DATA_DIR=/var/lib/archiver-bot
 ARCHIVER_SYNC_COMMANDS=false
 ```
 
-Set `ARCHIVER_SYNC_COMMANDS=true` only for intentional command registration updates.
+Set `ARCHIVER_SYNC_COMMANDS=true` only while intentionally updating Discord commands.

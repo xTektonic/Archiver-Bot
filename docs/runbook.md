@@ -1,60 +1,48 @@
-# Operational Runbook
+# Runbook
 
 ## Bot Does Not Start
 
-1. Confirm `.env` or service environment contains `DISCORD_BOT_TOKEN`.
+1. Confirm `DISCORD_BOT_TOKEN`.
 2. Confirm dependencies are installed.
-3. Run:
+3. Confirm `ARCHIVER_DATA_DIR` is writable.
+4. Run:
 
    ```powershell
-   .\.venv\Scripts\python.exe -m pytest
-   .\.venv\Scripts\python.exe -m ruff check src tests main.py
+   .\.venv\Scripts\python.exe -m ruff check src main.py
    ```
 
-4. Check whether `ARCHIVER_DATA_DIR` is writable.
-
-## Commands Missing In Discord
+## Commands Missing
 
 1. Set `ARCHIVER_SYNC_COMMANDS=true`.
-2. Restart the bot once.
+2. Restart once.
 3. Confirm commands appear.
 4. Set `ARCHIVER_SYNC_COMMANDS=false`.
-5. Restart again.
+5. Restart normally.
 
 ## State Looks Wrong
 
 1. Stop the bot.
 2. Back up `ARCHIVER_DATA_DIR/state.json`.
 3. Check `ARCHIVER_DATA_DIR/backups/`.
-4. Inspect `state.json` for malformed IDs or statuses.
+4. Inspect `state.json`.
 5. Restore from backup if needed.
 
 ## Tracker Summary Is Wrong
 
 1. Run `/tracker_list`.
-2. Confirm tracked submissions exist in `state.json`.
-3. Confirm tracker channel IDs in settings still match Discord.
-4. If a Discord message was manually deleted, rebuild the summary.
+2. Check `tracked_submissions` in `state.json`.
+3. Check tracker channel IDs in `src/config/settings.py`.
 
 ## Approval Button Does Nothing
 
-1. Confirm the approval is still `pending` in `state.json`.
+1. Confirm the approval is `pending` in `state.json`.
 2. Confirm `expires_at` has not passed.
 3. Confirm the approver has a higher role.
 4. Restart the bot to restore pending approval views.
 
 ## Parser Errors
 
-1. Parse a single post first with `/parse_post`.
-2. Read the diagnostic message.
+1. Run `/parse_post` on one post.
+2. Read the diagnostic.
 3. Fix the archive post format.
 4. Re-run parsing.
-
-## Before Manual Destructive Actions
-
-Use dry-run options where available:
-
-- `/close_resolved dry_run:true`
-- `/open_archived dry_run:true`
-
-Only run live mode after reviewing the dry-run count.

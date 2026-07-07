@@ -1,46 +1,33 @@
 # Parser
 
-The parser was ported as close to 1:1 as possible from the original root `parser.py`.
+The parser converts archive post text into JSON files.
 
 ## Files
 
-- `src/parser/legacy.py`: full legacy parser port
-- `src/models/message.py`: parser output TypedDicts
-- `src/parser/core.py`: small shared helpers such as `slugify`
-- `src/services/parser_service.py`: Discord thread collection and output writing
+- `src/parser/legacy.py`: strict archive post parser
+- `src/models/message.py`: parser output shapes
+- `src/parser/core.py`: shared helpers
+- `src/services/parser_service.py`: Discord thread collection and file writing
 
-## Behavior
-
-`ParserService` collects default Discord messages from a thread, builds a per-parse mention username lookup, calls `message_parse`, and writes one JSON file per parsed thread.
-
-Output path:
-
-```text
-ARCHIVER_DATA_DIR/parsed/<thread_id>.json
-```
-
-## Supported Commands
+## Commands
 
 - `/parse_post`
 - `/parse_channel`
 - `/parse_archive`
 
-## Important Notes
+## Output
 
-- The parser remains strict. Missing required sections or unexpected fields are reported as diagnostics.
-- Crossposts are rejected like the original parser.
-- CDN/media Discord URLs are normalized by the legacy parser.
-- Parser output is written via temp file then replace, so existing parsed output is not deleted before replacement output is ready.
+```text
+ARCHIVER_DATA_DIR/parsed/<thread_id>.json
+```
 
-## Testing
+## Behavior
 
-Current tests include a full-schema parser fixture covering:
+- Reads default messages from archive threads.
+- Builds a mention ID to username lookup before parsing.
+- Requires the archive post format expected by `message_parse`.
+- Rejects crossposts.
+- Normalizes Discord CDN/media URLs.
+- Writes output via temp file then replace.
 
-- designers
-- versions
-- rates
-- files
-- description
-- instructions
-
-Add golden fixtures before intentionally changing parser behavior.
+Add parser fixtures before changing parser behavior.
