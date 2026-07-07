@@ -1,5 +1,5 @@
-from typing import TypedDict
-from typing import Literal
+from typing import Literal, TypedDict
+
 
 class TextNode(TypedDict):
     list_type: Literal["dashed", "numbered"]

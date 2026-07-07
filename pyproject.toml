@@ -1,0 +1,41 @@
+[project]
+name = "archiver-bot"
+version = "0.1.0"
+description = "Discord archive workflow bot for one guild."
+requires-python = ">=3.12"
+dependencies = [
+    "aiofiles==24.1.0",
+    "discord.py==2.6.3",
+    "python-dotenv==1.1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.4.1",
+    "pytest-asyncio==1.0.0",
+    "ruff==0.12.2",
+    "mypy==1.16.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["archiver_bot*"]
+exclude = ["tests*", "cogs*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+check_untyped_defs = true

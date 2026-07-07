@@ -1,15 +1,13 @@
 import json
 import re
-from contextvars import ContextVar, Token
-
-# import traceback
 from collections import Counter, defaultdict
-from functools import wraps
-from typing import Callable
-from typing import get_origin
+from collections.abc import Callable
+from contextvars import ContextVar, Token
 from dataclasses import dataclass
+from functools import wraps
+from typing import get_origin
 
-from MessageDict import Message
+from archiver_bot.models.message import Message
 
 type section = list[str]
 type dict_section = dict[str, section]
