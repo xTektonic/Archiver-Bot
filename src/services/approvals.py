@@ -5,11 +5,11 @@ import uuid
 import discord
 from discord.ext import commands
 
-from archiver_bot.config.settings import BotSettings
-from archiver_bot.models.state import ApprovalType, PendingApproval
-from archiver_bot.services.audit import AuditLogService
-from archiver_bot.services.state import StateService
-from archiver_bot.services.time import is_expired, utc_after_iso, utc_now_iso
+from config.settings import BotSettings
+from models.state import ApprovalType, PendingApproval
+from services.audit import AuditLogService
+from services.state import StateService
+from services.time import is_expired, utc_after_iso, utc_now_iso
 
 
 class ApprovalService:

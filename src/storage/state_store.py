@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypeVar
 
-from archiver_bot.models.state import BotState
+from models.state import BotState
 
 T = TypeVar("T")
 

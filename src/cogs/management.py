@@ -4,10 +4,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from archiver_bot.app import ArchiverBot
-from archiver_bot.services.checks import has_higher_role
-from archiver_bot.services.maintenance import JobResult
-from archiver_bot.services.safe_discord import respond
+from app import ArchiverBot
+from services.checks import has_higher_role
+from services.maintenance import JobResult
+from services.safe_discord import respond
 
 
 class TagSelectView(discord.ui.View):

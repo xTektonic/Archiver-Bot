@@ -5,9 +5,9 @@ from datetime import timedelta
 import discord
 from discord.ext import commands
 
-from archiver_bot.config.settings import BotSettings
-from archiver_bot.services.audit import AuditLogService
-from archiver_bot.services.state import StateService
+from config.settings import BotSettings
+from services.audit import AuditLogService
+from services.state import StateService
 
 
 class ModerationService:

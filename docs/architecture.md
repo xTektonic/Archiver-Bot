@@ -1,11 +1,11 @@
 # Architecture
 
-Archiver-Bot is now a `src/` layout Python project. Runtime code lives in `src/archiver_bot`, tests live in `tests`, and mutable runtime data is kept outside Git under `ARCHIVER_DATA_DIR`.
+Archiver-Bot is now a `src/` layout Python project. Runtime code lives in `src`, tests live in `tests`, and mutable runtime data is kept outside Git under `ARCHIVER_DATA_DIR`.
 
 ## Package Layout
 
 ```text
-src/archiver_bot/
+src/
   app.py              Bot factory, service wiring, extension loading
   cogs/               Discord command and event surfaces
   config/             Typed settings and guild IDs
@@ -26,7 +26,7 @@ src/archiver_bot/
 
 ## Startup Flow
 
-1. `main.py` calls `archiver_bot.app.run_bot`.
+1. `main.py` calls `app.run_bot`.
 2. `create_bot()` loads settings and creates service instances.
 3. `setup_hook()` initializes state storage and loads all cogs.
 4. If `ARCHIVER_SYNC_COMMANDS=true`, slash/context commands are synced.

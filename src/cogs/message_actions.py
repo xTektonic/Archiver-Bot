@@ -5,7 +5,7 @@ import random
 import discord
 from discord.ext import commands
 
-from archiver_bot.app import ArchiverBot
+from app import ArchiverBot
 
 RANDOM_REPLIES = [
     "You rang?",

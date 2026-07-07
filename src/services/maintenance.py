@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 from discord.utils import snowflake_time
 
-from archiver_bot.config.settings import BotSettings
+from config.settings import BotSettings
 
 
 @dataclass

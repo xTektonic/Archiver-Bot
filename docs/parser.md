@@ -4,10 +4,10 @@ The parser was ported as close to 1:1 as possible from the original root `parser
 
 ## Files
 
-- `src/archiver_bot/parser/legacy.py`: full legacy parser port
-- `src/archiver_bot/models/message.py`: parser output TypedDicts
-- `src/archiver_bot/parser/core.py`: small shared helpers such as `slugify`
-- `src/archiver_bot/services/parser_service.py`: Discord thread collection and output writing
+- `src/parser/legacy.py`: full legacy parser port
+- `src/models/message.py`: parser output TypedDicts
+- `src/parser/core.py`: small shared helpers such as `slugify`
+- `src/services/parser_service.py`: Discord thread collection and output writing
 
 ## Behavior
 

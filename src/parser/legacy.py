@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import get_origin
 
-from archiver_bot.models.message import Message
+from models.message import Message
 
 type section = list[str]
 type dict_section = dict[str, section]

@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import unittest
 
-from archiver_bot.models.state import PendingApproval, TrackedSubmission
-from archiver_bot.storage.state_store import StateStore
+from models.state import PendingApproval, TrackedSubmission
+from storage.state_store import StateStore
 
 
 class StateStoreTests(unittest.IsolatedAsyncioTestCase):

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from archiver_bot.parser.core import parse_archive_post_text
-from archiver_bot.parser.legacy import message_parse
+from parser.core import parse_archive_post_text
+from parser.legacy import message_parse
 
 
 class ParserCoreTests(unittest.TestCase):

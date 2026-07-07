@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from archiver_bot.services.audit import AuditLogService
-from archiver_bot.services.state import StateService
+from services.audit import AuditLogService
+from services.state import StateService
 
 
 @dataclass

@@ -3,11 +3,11 @@ from __future__ import annotations
 import discord
 from discord.ext import commands
 
-from archiver_bot.config.settings import BotSettings
-from archiver_bot.models.state import SubmissionStatus, TrackedSubmission
-from archiver_bot.services.audit import AuditLogService
-from archiver_bot.services.state import StateService
-from archiver_bot.services.time import utc_now_iso
+from config.settings import BotSettings
+from models.state import SubmissionStatus, TrackedSubmission
+from services.audit import AuditLogService
+from services.state import StateService
+from services.time import utc_now_iso
 
 
 class SubmissionTrackerService:

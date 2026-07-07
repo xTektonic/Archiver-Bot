@@ -3,7 +3,7 @@ from __future__ import annotations
 import discord
 from discord.ext import commands
 
-from archiver_bot.config.settings import BotSettings
+from config.settings import BotSettings
 
 
 class AuditLogService:

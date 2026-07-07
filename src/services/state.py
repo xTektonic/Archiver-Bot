@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from archiver_bot.models.state import BotState, PendingApproval, TrackedSubmission
-from archiver_bot.storage.state_store import StateStore
+from models.state import BotState, PendingApproval, TrackedSubmission
+from storage.state_store import StateStore
 
 
 class StateService:

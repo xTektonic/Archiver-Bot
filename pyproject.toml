@@ -17,9 +17,12 @@ dev = [
     "mypy==1.16.1",
 ]
 
+[tool.setuptools]
+py-modules = ["app"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["archiver_bot*"]
+include = ["cogs*", "config*", "jobs*", "models*", "parser*", "services*", "storage*"]
 
 [tool.setuptools.package-dir]
 "" = "src"

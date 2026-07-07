@@ -3,10 +3,10 @@ from __future__ import annotations
 import discord
 from discord.ext import commands
 
-from archiver_bot.config.settings import BotSettings
-from archiver_bot.services.audit import AuditLogService
-from archiver_bot.services.safe_discord import ensure_content_safe, no_mentions
-from archiver_bot.services.state import StateService
+from config.settings import BotSettings
+from services.audit import AuditLogService
+from services.safe_discord import ensure_content_safe, no_mentions
+from services.state import StateService
 
 
 class ArchivePublishingService:

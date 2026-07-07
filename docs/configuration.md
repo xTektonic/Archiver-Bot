@@ -1,6 +1,6 @@
 # Configuration
 
-Configuration is loaded by `archiver_bot.config.settings.load_settings`.
+Configuration is loaded by `config.settings.load_settings`.
 
 ## Environment Variables
 
@@ -12,7 +12,7 @@ ARCHIVER_SYNC_COMMANDS=optional, defaults to false
 
 ## Discord IDs
 
-Guild-specific IDs live in `src/archiver_bot/config/settings.py` as typed dataclasses:
+Guild-specific IDs live in `src/config/settings.py` as typed dataclasses:
 
 - `RoleIds`
 - `ChannelIds`

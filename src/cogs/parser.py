@@ -4,9 +4,9 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from archiver_bot.app import ArchiverBot
-from archiver_bot.services.checks import has_higher_role
-from archiver_bot.services.safe_discord import defer
+from app import ArchiverBot
+from services.checks import has_higher_role
+from services.safe_discord import defer
 
 
 class ParserCog(commands.Cog):

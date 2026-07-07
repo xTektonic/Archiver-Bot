@@ -5,18 +5,18 @@ from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 
-from archiver_bot.config.settings import BotSettings, load_settings
-from archiver_bot.services.approvals import ApprovalService
-from archiver_bot.services.archive import ArchivePublishingService
-from archiver_bot.services.audit import AuditLogService
-from archiver_bot.services.container import ServiceContainer
-from archiver_bot.services.maintenance import MaintenanceJobService
-from archiver_bot.services.moderation import ModerationService
-from archiver_bot.services.parser_service import ParserService
-from archiver_bot.services.safe_discord import respond
-from archiver_bot.services.state import StateService
-from archiver_bot.services.tracker import SubmissionTrackerService
-from archiver_bot.storage.state_store import StateStore
+from config.settings import BotSettings, load_settings
+from services.approvals import ApprovalService
+from services.archive import ArchivePublishingService
+from services.audit import AuditLogService
+from services.container import ServiceContainer
+from services.maintenance import MaintenanceJobService
+from services.moderation import ModerationService
+from services.parser_service import ParserService
+from services.safe_discord import respond
+from services.state import StateService
+from services.tracker import SubmissionTrackerService
+from storage.state_store import StateStore
 
 
 class ArchiverBot(commands.Bot):
@@ -48,12 +48,12 @@ def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
 
     async def setup_hook() -> None:
         await state_service.initialize()
-        await bot.load_extension("archiver_bot.cogs.utility")
-        await bot.load_extension("archiver_bot.cogs.message_actions")
-        await bot.load_extension("archiver_bot.cogs.submissions")
-        await bot.load_extension("archiver_bot.cogs.archive")
-        await bot.load_extension("archiver_bot.cogs.management")
-        await bot.load_extension("archiver_bot.cogs.parser")
+        await bot.load_extension("cogs.utility")
+        await bot.load_extension("cogs.message_actions")
+        await bot.load_extension("cogs.submissions")
+        await bot.load_extension("cogs.archive")
+        await bot.load_extension("cogs.management")
+        await bot.load_extension("cogs.parser")
         if isinstance(services.approvals, ApprovalService):
             await services.approvals.restore_pending_views()
         if settings.sync_commands:

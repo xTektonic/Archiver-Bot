@@ -7,9 +7,9 @@ from datetime import UTC, datetime
 import discord
 from discord.ext import commands
 
-from archiver_bot.config.settings import BotSettings
-from archiver_bot.parser.core import slugify
-from archiver_bot.parser.legacy import (
+from config.settings import BotSettings
+from parser.core import slugify
+from parser.legacy import (
     message_parse,
     reset_contributor_username_lookup,
     set_contributor_username_lookup,
