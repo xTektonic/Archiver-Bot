@@ -39,3 +39,14 @@ Required environment variables:
 4. Confirm the online log message appears.
 5. Run a tracker rebuild.
 6. Verify `state.json` still exists after update.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Configuration](docs/configuration.md)
+- [Runtime State](docs/runtime-state.md)
+- [Deployment](docs/deployment.md)
+- [Testing](docs/testing.md)
+- [Commands and Syncing](docs/commands.md)
+- [Parser](docs/parser.md)
+- [Operational Runbook](docs/runbook.md)
