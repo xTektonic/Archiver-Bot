@@ -94,15 +94,18 @@ class StateStore:
         result: list[int] = []
         for value in values:
             if not isinstance(value, int | str):
-                continue
+                raise RuntimeError(f"Legacy state file {path} contains a non-integer value")
             try:
                 result.append(int(value))
             except (TypeError, ValueError):
-                continue
+                raise RuntimeError(f"Legacy state file {path} contains a non-integer value") from None
         return result
 
     def _load_str_list(self, path: Path) -> list[str]:
-        return [str(value) for value in self._load_json_list(path)]
+        values = self._load_json_list(path)
+        if not all(isinstance(value, str) for value in values):
+            raise RuntimeError(f"Legacy state file {path} contains a non-string value")
+        return [value for value in values if isinstance(value, str)]
 
     def _load_json_list(self, path: Path) -> list[object]:
         if not path.exists():
@@ -113,9 +116,11 @@ class StateStore:
             if not content:
                 return []
             raw = json.loads(content)
-            return raw if isinstance(raw, list) else []
-        except (OSError, json.JSONDecodeError):
-            return []
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Could not load legacy state file {path}: {exc}") from exc
+        if not isinstance(raw, list):
+            raise RuntimeError(f"Legacy state file {path} must contain a JSON list")
+        return raw
 
     async def load(self) -> BotState:
         async with self._lock:

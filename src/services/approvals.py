@@ -189,11 +189,17 @@ class ApprovalService:
             if channel is None:
                 try:
                     channel = await self.bot.fetch_channel(approval.approval_channel_id)
-                except discord.HTTPException:
+                except discord.NotFound:
                     await self.state.remove_approval(approval.approval_id)
                     await self._log_restore_cleanup(
                         approval,
-                        "approval channel could not be fetched",
+                        "approval channel no longer exists",
+                    )
+                    continue
+                except discord.HTTPException as exc:
+                    await self._log_restore_retry(
+                        approval,
+                        f"approval channel could not be fetched: {exc}",
                     )
                     continue
             if not isinstance(channel, discord.TextChannel | discord.Thread):
@@ -206,11 +212,17 @@ class ApprovalService:
             try:
                 message = await channel.fetch_message(approval.approval_message_id)
                 await message.edit(view=ApprovalView(self, approval.approval_id, timeout=seconds_until(approval.expires_at)))
-            except discord.HTTPException:
+            except discord.NotFound:
                 await self.state.remove_approval(approval.approval_id)
                 await self._log_restore_cleanup(
                     approval,
-                    "approval message could not be fetched or updated",
+                    "approval message no longer exists",
+                )
+                continue
+            except discord.HTTPException as exc:
+                await self._log_restore_retry(
+                    approval,
+                    f"approval message could not be fetched or updated: {exc}",
                 )
                 continue
 
@@ -269,6 +281,16 @@ class ApprovalService:
             await self.audit.log(
                 "Approval restore cleanup",
                 f"Approval {approval.approval_id} removed: {reason}.",
+                colour=discord.Color.orange(),
+            )
+        except discord.HTTPException:
+            return
+
+    async def _log_restore_retry(self, approval: PendingApproval, reason: str) -> None:
+        try:
+            await self.audit.log(
+                "Approval restore deferred",
+                f"Approval {approval.approval_id} kept pending: {reason}.",
                 colour=discord.Color.orange(),
             )
         except discord.HTTPException:
