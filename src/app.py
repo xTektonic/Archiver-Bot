@@ -23,6 +23,7 @@ class ArchiverBot(commands.Bot):
     settings: BotSettings
     services: ServiceContainer
     _approvals_restored: bool
+    _startup_tracker_sync_checked: bool
 
 
 def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
@@ -50,6 +51,7 @@ def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
     )
     bot.services = services
     bot._approvals_restored = False
+    bot._startup_tracker_sync_checked = False
 
     async def setup_hook() -> None:
         await state_service.initialize()
@@ -65,6 +67,10 @@ def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
         if not bot._approvals_restored and isinstance(services.approvals, ApprovalService):
             bot._approvals_restored = True
             await services.approvals.restore_pending_views()
+        if not bot._startup_tracker_sync_checked:
+            bot._startup_tracker_sync_checked = True
+            result = await services.tracker.sync_all(dry_run=True, include_archived=False)
+            await audit.log_embed(result.to_embed(title="Startup Tracker Sync Dry Run"))
 
     async def on_app_command_error(
         interaction: discord.Interaction, error: app_commands.AppCommandError

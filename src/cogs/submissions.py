@@ -55,7 +55,7 @@ class SubmissionsCog(commands.Cog):
             dry_run=dry_run,
             include_archived=include_archived,
         )
-        await interaction.followup.send(result.summary(), ephemeral=True)
+        await interaction.followup.send(embed=result.to_embed(), ephemeral=True)
 
     @app_commands.command(name="track", description="Add the current submission post to the tracker")
     @app_commands.check(has_higher_role)

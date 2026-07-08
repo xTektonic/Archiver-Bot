@@ -137,7 +137,10 @@ class ParserCog(commands.Cog):
             return
         await defer(interaction)
         result = await self.bot.services.parser.parse_thread(thread)
-        await interaction.followup.send(self._format_result(result.total, result.errors), ephemeral=True)
+        await interaction.followup.send(
+            embed=self._result_embed(result.total, result.errors),
+            ephemeral=True,
+        )
         if result.errors:
             await interaction.followup.send(
                 f"{thread.jump_url}: {result.errors[0].error}",
@@ -158,7 +161,7 @@ class ParserCog(commands.Cog):
             return
         await defer(interaction, ephemeral=False)
         result = await self.bot.services.parser.parse_channel(channel)
-        await interaction.followup.send(self._format_result(result.total, result.errors))
+        await interaction.followup.send(embed=self._result_embed(result.total, result.errors))
         await self._send_error_views(interaction.channel, result.errors)
 
     @app_commands.command(name="parse_archive", description="Parse all configured archive forums")
@@ -166,14 +169,23 @@ class ParserCog(commands.Cog):
     async def parse_archive(self, interaction: discord.Interaction) -> None:
         await defer(interaction, ephemeral=False)
         result = await self.bot.services.parser.parse_archive(interaction.guild)
-        await interaction.followup.send(self._format_result(result.total, result.errors))
+        await interaction.followup.send(embed=self._result_embed(result.total, result.errors))
         await self._send_error_views(interaction.channel, result.errors)
 
-    def _format_result(self, total: int, errors: list) -> str:
+    def _result_embed(self, total: int, errors: list[ParseDiagnostic]) -> discord.Embed:
+        embed = discord.Embed(
+            title="Parser Result",
+            description=f"Parsed {total} post(s).",
+            colour=discord.Color.red() if errors else discord.Color.green(),
+        )
         if not errors:
-            return f"Parsed {total} post(s) successfully."
+            embed.add_field(name="Status", value="Parse completed successfully.", inline=False)
+            return embed
         sample = "\n".join(f"- {error.thread_name}: {error.error}" for error in errors[:5])
-        return f"Parsed {total} post(s). Errors: {len(errors)}.\n{sample}"
+        if len(errors) > 5:
+            sample += f"\n- ...and {len(errors) - 5} more"
+        embed.add_field(name=f"Errors ({len(errors)})", value=sample[:1024], inline=False)
+        return embed
 
     def _is_archive_thread(self, thread: discord.Thread) -> bool:
         return bool(

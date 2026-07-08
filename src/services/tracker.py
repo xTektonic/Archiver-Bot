@@ -76,6 +76,48 @@ class TrackerSyncResult:
             lines.extend(f"- {detail}" for detail in details)
         return "\n".join(line for line in lines if line)
 
+    def to_embed(self, *, title: str = "Tracker Sync") -> discord.Embed:
+        mode = "Dry run" if self.dry_run else "Applied"
+        scope = "active and archived submissions" if self.include_archived else "active submissions"
+        colour = discord.Color.red() if self.failures else discord.Color.orange()
+        if not self.has_changes():
+            colour = discord.Color.green()
+        embed = discord.Embed(
+            title=title,
+            description=(
+                f"{mode} complete for {scope}.\n"
+                f"Scanned {self.scanned_submissions} submission thread(s) and "
+                f"{self.scanned_tracker_messages} tracker message(s)."
+            ),
+            colour=colour,
+        )
+        counts = [
+            ("Would Create" if self.dry_run else "Created", self.created),
+            ("Would Update" if self.dry_run else "Updated", self.updated),
+            ("Would Finalize" if self.dry_run else "Finalized", self.finalized),
+            ("Would Prune" if self.dry_run else "Pruned", self.pruned),
+            ("Duplicates", self.duplicates),
+            ("Missing/Inaccessible", self.missing),
+            ("Failures", self.failures),
+        ]
+        for name, values in counts:
+            if values:
+                embed.add_field(
+                    name=f"{name} ({len(values)})",
+                    value=self._embed_items(values),
+                    inline=False,
+                )
+        if not self.has_changes():
+            embed.add_field(name="Status", value="No tracker changes needed.", inline=False)
+        return embed
+
+    def _embed_items(self, values: list[str]) -> str:
+        lines = [f"- {value}" for value in values[:8]]
+        if len(values) > 8:
+            lines.append(f"- ...and {len(values) - 8} more")
+        text = "\n".join(lines)
+        return text if len(text) <= 1024 else f"{text[:1020]}..."
+
 
 class SubmissionTrackerService:
     VOTE_EMOJIS = ("\u274c", "\U0001f534", "\U0001f7e2", "\u2705")
