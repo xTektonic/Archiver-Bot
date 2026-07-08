@@ -68,6 +68,8 @@ class SubmissionTrackerService:
             tracker_thread_id=discussion.id,
             created_at=now,
             updated_at=now,
+            submission_url=thread.jump_url,
+            tracker_thread_url=discussion.jump_url,
         )
         await self.state.upsert_submission(record)
         await self.rebuild_summary()
@@ -87,10 +89,12 @@ class SubmissionTrackerService:
                 tracker_thread_id=None,
                 created_at=now,
                 updated_at=now,
+                submission_url=thread.jump_url,
             )
         else:
             previous_title = existing.title
             existing.title = thread.name
+            existing.submission_url = thread.jump_url
             if status != "unknown":
                 existing.status = status
             existing.updated_at = now
@@ -220,6 +224,8 @@ class SubmissionTrackerService:
             tracker_thread_id=discussion_id,
             created_at=created_at,
             updated_at=created_at,
+            submission_url=title_match.group("url"),
+            tracker_thread_url=lines[1] if len(lines) > 1 else None,
         )
 
     def _last_snowflake(self, text: str) -> int | None:
@@ -338,9 +344,9 @@ class SubmissionTrackerService:
 
     def _summary_line(self, record: TrackedSubmission) -> str:
         guild_id = self.bot.guilds[0].id if self.bot.guilds else "@me"
-        submission_url = f"https://discord.com/channels/{guild_id}/{record.submission_thread_id}"
+        submission_url = record.submission_url or f"https://discord.com/channels/{guild_id}/{record.submission_thread_id}"
         line = f"- **[{record.title}]({submission_url})**"
         if record.tracker_thread_id is not None:
-            discussion_url = f"https://discord.com/channels/{guild_id}/{record.tracker_thread_id}"
+            discussion_url = record.tracker_thread_url or f"https://discord.com/channels/{guild_id}/{record.tracker_thread_id}"
             line += f" - {discussion_url}"
         return f"{line}\n"

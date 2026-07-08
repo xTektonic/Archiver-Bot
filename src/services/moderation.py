@@ -26,22 +26,30 @@ class ModerationService:
     async def forward_dm(self, message: discord.Message) -> None:
         if await self.state.is_dm_blocked(message.author.id):
             return
-        target = await self.bot.fetch_channel(self.settings.channels.bot_dm_thread)
-        if not isinstance(target, discord.abc.Messageable):
-            return
-        embed = discord.Embed(
-            title="DM received",
-            description=f"From: {message.author} {message.author.mention}\n\n{message.content}",
-            color=discord.Color.dark_gold(),
-        )
-        embed.set_thumbnail(url=message.author.display_avatar.url)
-        files = [await attachment.to_file() for attachment in message.attachments]
-        await target.send(
-            embed=embed,
-            files=files,
-            view=DMRelayView(self, message),
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
+        try:
+            target = await self.bot.fetch_channel(self.settings.channels.bot_dm_thread)
+            if not isinstance(target, discord.abc.Messageable):
+                await self.audit.log("Error forwarding DM", "DM relay target is not messageable.")
+                return
+            embed = discord.Embed(
+                title="DM received",
+                description=f"From: {message.author} {message.author.mention}\n\n{message.content}",
+                color=discord.Color.dark_gold(),
+            )
+            embed.set_thumbnail(url=message.author.display_avatar.url)
+            files = [await attachment.to_file() for attachment in message.attachments]
+            await target.send(
+                embed=embed,
+                files=files,
+                view=DMRelayView(self, message),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+        except Exception as exc:
+            await self.audit.log(
+                "Error forwarding DM",
+                f"From: {message.author} {message.author.mention}\nError: {exc}",
+                colour=discord.Color.red(),
+            )
 
     async def block_dm_user(self, user_id: int) -> bool:
         return await self.state.block_dm_user(user_id)

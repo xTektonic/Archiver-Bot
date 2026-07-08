@@ -24,6 +24,8 @@ class TrackedSubmission:
     tracker_thread_id: int | None
     created_at: str
     updated_at: str
+    submission_url: str | None = None
+    tracker_thread_url: str | None = None
 
 
 @dataclass

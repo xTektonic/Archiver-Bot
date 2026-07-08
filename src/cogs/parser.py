@@ -90,7 +90,7 @@ class ParserErrorView(discord.ui.View):
     ) -> ParserErrorView:
         messages = [
             message
-            async for message in thread.history(limit=5, oldest_first=False)
+            async for message in thread.history(limit=5, oldest_first=True)
             if message.content and message.type == discord.MessageType.default
         ]
         return cls(bot, thread, diagnostic, messages)
