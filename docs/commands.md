@@ -19,6 +19,12 @@ Archiver-Bot syncs commands on startup. `/restart` also has a `sync_commands` op
   Returns attachment URLs from a message in the current channel. Archiver/moderator only.  
   `message_id`: Discord message ID to inspect.
 
+- `/servers`  
+  Sends the list of other archive servers to the current channel. Moderator only. No parameters.
+
+- `/help`  
+  Sends the Archiver Bot command list. Staff only. No parameters.
+
 - `/tracker_list`  
   Rebuilds the submission tracker summary from stored state. Archiver/moderator only.
 
@@ -56,11 +62,11 @@ Archiver-Bot syncs commands on startup. `/restart` also has a `sync_commands` op
 
 - `/parse_post thread`  
   Parses one archive thread and writes JSON output. Archiver/moderator only.  
-  `thread`: thread to parse.
+  `thread`: archive thread to parse.
 
 - `/parse_channel channel`  
   Parses every post in one archive forum. Archiver/moderator only.  
-  `channel`: forum channel to parse.
+  `channel`: archive forum channel to parse.
 
 - `/parse_archive`  
   Parses all configured archive forums. Archiver/moderator only. No parameters.

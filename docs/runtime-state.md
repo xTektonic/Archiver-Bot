@@ -23,7 +23,6 @@ data/
 - last archive thread ID
 - tracked submissions
 - pending approvals
-- command change log entries
 
 ## Write Behavior
 
@@ -45,4 +44,4 @@ If `state.json` does not exist, startup can import:
 - `messages.json`
 - `accepted.json`
 
-Use this only for bootstrapping existing production state.
+Use this only for bootstrapping existing production state. After a successful import, the legacy JSON files are removed so they are not imported again. Submission tracker rebuilds can also import missing active tracker posts from the tracker channel itself.
