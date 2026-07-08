@@ -183,7 +183,9 @@ class SubmissionTrackerService:
 
         for thread in submission_threads.values():
             status = self._status_from_submission(thread)
-            record = tracker_records.get(thread.id) or state_records.get(thread.id)
+            tracker_record = tracker_records.get(thread.id)
+            state_record = state_records.get(thread.id)
+            record = tracker_record or state_record
             if status in {"archived", "rejected"}:
                 if record is not None:
                     result.finalized.append(f"{status}: {thread.name}")
@@ -204,14 +206,14 @@ class SubmissionTrackerService:
                         await self._finalize_tracker_message(record)
                         await self.state.remove_submission(thread.id)
                 continue
-            if record is None or record.tracker_message_id is None:
+            if tracker_record is None:
                 result.created.append(thread.name)
                 if not dry_run:
                     await self._create_tracker_post(thread, rebuild=False)
                 continue
+            record = tracker_record
             changed = self._record_needs_thread_sync(record, thread)
             if record.status not in {"pending", "awaiting_testing"}:
-                record.status = "pending"
                 changed = True
             if await self._tracker_discussion_missing(record):
                 result.updated.append(f"Recreated missing tracker discussion for {thread.name}")

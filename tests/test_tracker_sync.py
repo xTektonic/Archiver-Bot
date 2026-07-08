@@ -295,3 +295,52 @@ class TrackerSyncTests(unittest.IsolatedAsyncioTestCase):
         record = state.state.tracked_submissions[str(thread.id)]
         self.assertIsNotNone(record.tracker_thread_id)
         self.assertIn(str(record.tracker_thread_id), message.content)
+
+    async def test_stale_state_only_tracker_message_id_is_recreated(self) -> None:
+        thread = FakeThread(111111111111111, "Pending Submission")
+        state = BotState()
+        state.tracked_submissions[str(thread.id)] = TrackedSubmission(
+            submission_thread_id=thread.id,
+            title=thread.name,
+            status="pending",
+            tracker_message_id=222222222222222,
+            tracker_thread_id=333333333333333,
+            created_at="2026-01-01T00:00:00+00:00",
+            updated_at="2026-01-01T00:00:00+00:00",
+            submission_url=thread.jump_url,
+            tracker_thread_url="https://discord.com/channels/1/333333333333333",
+        )
+        tracker = FakeTextChannel()
+        service, state_service = self.service(FakeForumChannel([thread]), tracker, state)
+
+        result = await service.sync_all(dry_run=False)
+
+        self.assertEqual(result.created, ["Pending Submission"])
+        record = state_service.state.tracked_submissions[str(thread.id)]
+        self.assertNotEqual(record.tracker_message_id, 222222222222222)
+        self.assertTrue(any(thread.jump_url in message.content for message in tracker.messages))
+
+    async def test_dry_run_does_not_mutate_state_record_status(self) -> None:
+        thread = FakeThread(111111111111111, "Pending Submission")
+        state = BotState()
+        state.tracked_submissions[str(thread.id)] = TrackedSubmission(
+            submission_thread_id=thread.id,
+            title=thread.name,
+            status="accepted",
+            tracker_message_id=222222222222222,
+            tracker_thread_id=333333333333333,
+            created_at="2026-01-01T00:00:00+00:00",
+            updated_at="2026-01-01T00:00:00+00:00",
+            submission_url=thread.jump_url,
+            tracker_thread_url="https://discord.com/channels/1/333333333333333",
+        )
+        tracker = FakeTextChannel()
+        service, state_service = self.service(FakeForumChannel([thread]), tracker, state)
+
+        result = await service.sync_all(dry_run=True)
+
+        self.assertEqual(result.created, ["Pending Submission"])
+        self.assertEqual(
+            state_service.state.tracked_submissions[str(thread.id)].status,
+            "accepted",
+        )
