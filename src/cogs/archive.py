@@ -108,6 +108,7 @@ class EditMessageModal(discord.ui.Modal, title="Edit Message"):
             self.add_item(self.embed_text)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        await defer(interaction)
         original_embeds = [discord.Embed.from_dict(embed.to_dict()) for embed in self.rich_embeds]
         embeds: list[discord.Embed] = []
         if self.rich_embeds:
@@ -146,7 +147,7 @@ class EditMessageModal(discord.ui.Modal, title="Edit Message"):
                     inline=False,
                 )
         await self.bot.services.audit.log_embed(log_embed)
-        await interaction.response.send_message("Message successfully edited.", ephemeral=True)
+        await interaction.followup.send("Message successfully edited.", ephemeral=True)
 
 
 class PublishModal(discord.ui.Modal, title="Publish Post"):

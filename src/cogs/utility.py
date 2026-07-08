@@ -88,16 +88,17 @@ class UtilityCog(commands.Cog):
     @app_commands.command(name="leave", description="Leave the server with the given ID")
     @app_commands.check(has_moderator_role)
     async def leave(self, interaction: discord.Interaction, server_id: str) -> None:
+        await defer(interaction)
         try:
             guild = await self.bot.fetch_guild(int(server_id))
             name = guild.name
             await guild.leave()
-            await respond(interaction, f"Successfully left **{name}** (`{server_id}`).")
+            await interaction.followup.send(f"Successfully left **{name}** (`{server_id}`).", ephemeral=True)
             await self.bot.services.audit.log(
                 "Bot left server", f"Server: {name}\nID: `{server_id}`\nBy: {interaction.user.mention}"
             )
         except Exception as exc:
-            await respond(interaction, f"Error trying to leave server: {exc}")
+            await interaction.followup.send(f"Error trying to leave server: {exc}", ephemeral=True)
 
     @app_commands.command(name="restart", description="Restart the bot process")
     @app_commands.describe(

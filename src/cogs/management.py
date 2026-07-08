@@ -30,6 +30,7 @@ class TagSelectView(discord.ui.View):
     async def on_select(self, interaction: discord.Interaction) -> None:
         selected = {int(value) for value in self.select.values}
         tags = [tag for tag in self.thread.parent.available_tags if tag.id in selected]
+        await interaction.response.edit_message(content="Setting tags...", view=None)
         await self.thread.edit(applied_tags=tags)
         client = interaction.client
         if isinstance(client, ArchiverBot):
@@ -37,7 +38,7 @@ class TagSelectView(discord.ui.View):
                 f"Tags {format_tag_names(tags)} added",
                 f"To post: {self.thread.jump_url}\nBy: {interaction.user.mention}",
             )
-        await interaction.response.edit_message(content="Tags set.", view=None)
+        await interaction.edit_original_response(content="Tags set.", view=None)
 
 
 class ManagementCog(commands.Cog):
@@ -112,12 +113,13 @@ class ManagementCog(commands.Cog):
         if tag is None:
             await respond(interaction, "Invalid tag name.")
             return
+        await defer(interaction)
         await interaction.channel.edit(applied_tags=[tag])
         await self.bot.services.audit.log(
             f"Tag {format_tag_names([tag])} added",
             f"To post: {interaction.channel.jump_url}\nBy: {interaction.user.mention}",
         )
-        await respond(interaction, f"Set tag to {tag.name}.")
+        await interaction.followup.send(f"Set tag to {tag.name}.", ephemeral=True)
 
     async def pin_message(self, interaction: discord.Interaction, message: discord.Message) -> None:
         if not isinstance(message.channel, discord.Thread):

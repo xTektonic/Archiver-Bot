@@ -136,8 +136,9 @@ class DMReplyModal(discord.ui.Modal, title="Reply to DM"):
         self.add_item(self.message)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
         await self.service.reply_to_dm(self.original, self.message.value)
-        await interaction.response.send_message("DM sent.", ephemeral=True)
+        await interaction.followup.send("DM sent.", ephemeral=True)
 
 
 class DMRelayView(discord.ui.View):
@@ -164,6 +165,7 @@ class DMRelayView(discord.ui.View):
     async def block_button(
         self, interaction: discord.Interaction, _button: discord.ui.Button
     ) -> None:
+        await interaction.response.defer(ephemeral=True)
         added = await self.service.block_dm_user(self.original.author.id)
         message = "User blocked." if added else "User was already blocked."
-        await interaction.response.send_message(message, ephemeral=True)
+        await interaction.followup.send(message, ephemeral=True)
