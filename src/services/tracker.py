@@ -342,17 +342,25 @@ class SubmissionTrackerService:
         return [line for line in legacy_lines if not any(thread_id in line for thread_id in tracked_ids)]
 
     async def _finalize_tracker_message(self, record: TrackedSubmission) -> None:
+        try:
+            await self._finalize_tracker_message_inner(record)
+        except Exception as exc:
+            await self.audit.log(
+                "Tracker finalization failed",
+                f"Could not finalize tracker state for {record.title}: {exc}",
+                colour=discord.Color.red(),
+            )
+
+    async def _finalize_tracker_message_inner(self, record: TrackedSubmission) -> None:
         if record.tracker_message_id is None:
             return
         tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)
         if not isinstance(tracker_channel, discord.TextChannel):
             return
-
         try:
             tracker_message = await tracker_channel.fetch_message(record.tracker_message_id)
         except discord.HTTPException:
             return
-
         discussion = await self._fetch_tracker_discussion(record.tracker_thread_id)
         if discussion is not None and tracker_message.reactions:
             lines = ["**Votes as of submission resolution:**"]

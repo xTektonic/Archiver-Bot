@@ -42,6 +42,7 @@ class StateStore:
             self._remove_legacy_files()
         if state.version != 1:
             await self._backup_existing("pre-migration")
+            state.version = 1
             await self.save(state)
 
     def _load_legacy_state(self) -> BotState:
