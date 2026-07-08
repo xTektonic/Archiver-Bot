@@ -61,13 +61,13 @@ class ModerationService:
             f"To: {original.author} {original.author.mention}\n\n{content}",
         )
 
-    async def handle_no_chat_user(self, message: discord.Message) -> None:
+    async def handle_no_chat_user(self, message: discord.Message) -> bool:
         if not isinstance(message.author, discord.Member):
-            return
+            return False
         if not message.author.get_role(self.settings.roles.no_chat):
-            return
+            return False
         if any(role.id in self.settings.roles.staff for role in message.author.roles):
-            return
+            return False
         attachments = [await attachment.to_file() for attachment in message.attachments]
         content = message.content
         await message.delete()
@@ -100,6 +100,7 @@ class ModerationService:
         logs = self.bot.get_channel(self.settings.channels.log)
         if isinstance(logs, discord.abc.Messageable) and attachments:
             await logs.send(files=attachments)
+        return True
 
 
 class DMReplyModal(discord.ui.Modal, title="Reply to DM"):

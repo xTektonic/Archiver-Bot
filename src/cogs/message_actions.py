@@ -40,7 +40,7 @@ RANDOM_REPLIES = [
     "I heard camou talking about banning you",
     "Beware the froggo",
     "Are you the real bigbooty?",
-    "Chat should we ban this guy?"
+    "Chat should we ban this guy?",
 ]
 
 
@@ -57,7 +57,8 @@ class MessageActionsCog(commands.Cog):
             return
         if message.flags.is_crossposted and message.channel.id == self.bot.settings.channels.snapshot:
             await self._pin_snapshot_message(message)
-        await self.bot.services.moderation.handle_no_chat_user(message)
+        if await self.bot.services.moderation.handle_no_chat_user(message):
+            return
         if self.bot.user and self.bot.user in message.mentions:
             await message.reply(content=random.choice(RANDOM_REPLIES), mention_author=False)
         if isinstance(message.channel, discord.Thread) and message.id == message.channel.id:
