@@ -88,11 +88,23 @@ class ParserErrorView(discord.ui.View):
         thread: discord.Thread,
         diagnostic: ParseDiagnostic,
     ) -> ParserErrorView:
-        messages = [
+        first_messages = [
             message
-            async for message in thread.history(limit=5, oldest_first=True)
+            async for message in thread.history(limit=3, oldest_first=True)
             if message.content and message.type == discord.MessageType.default
         ]
+        messages = list(first_messages)
+        seen = {message.id for message in messages}
+        async for message in thread.history(limit=5, oldest_first=False):
+            if len(messages) >= 5:
+                break
+            if (
+                message.id not in seen
+                and message.content
+                and message.type == discord.MessageType.default
+            ):
+                messages.append(message)
+                seen.add(message.id)
         return cls(bot, thread, diagnostic, messages)
 
     def _edit_callback(self, message: discord.Message):

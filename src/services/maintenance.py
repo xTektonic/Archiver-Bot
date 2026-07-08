@@ -33,17 +33,25 @@ class MaintenanceJobService:
                 if thread.archived or thread.flags.pinned:
                     continue
                 if thread.locked:
-                    result.changed += 1
-                    result.messages.append(f"{thread.name} in {channel.name}")
-                    if not dry_run:
-                        await thread.edit(locked=False)
-                        await thread.edit(archived=True, locked=True)
+                    if dry_run:
+                        self._record_change(result, f"{thread.name} in {channel.name}")
+                    else:
+                        try:
+                            await thread.edit(locked=False)
+                            await thread.edit(archived=True, locked=True)
+                            self._record_change(result, f"{thread.name} in {channel.name}")
+                        except discord.HTTPException as exc:
+                            self._record_failure(result, thread, exc)
                     continue
                 if any(tag.name.lower() in resolved_names for tag in thread.applied_tags):
-                    result.changed += 1
-                    result.messages.append(f"{thread.name} in {channel.name}")
-                    if not dry_run:
-                        await thread.edit(archived=True)
+                    if dry_run:
+                        self._record_change(result, f"{thread.name} in {channel.name}")
+                    else:
+                        try:
+                            await thread.edit(archived=True)
+                            self._record_change(result, f"{thread.name} in {channel.name}")
+                        except discord.HTTPException as exc:
+                            self._record_failure(result, thread, exc)
         return result
 
     async def open_archived(self, guild: discord.Guild, *, dry_run: bool) -> JobResult:
@@ -92,10 +100,14 @@ class MaintenanceJobService:
                 tag.id in required_tags for tag in thread.applied_tags
             ):
                 continue
-            result.changed += 1
-            result.messages.append(f"{thread.name} in {channel.name}")
-            if not dry_run:
-                await thread.edit(archived=False)
+            if dry_run:
+                self._record_change(result, f"{thread.name} in {channel.name}")
+            else:
+                try:
+                    await thread.edit(archived=False)
+                    self._record_change(result, f"{thread.name} in {channel.name}")
+                except discord.HTTPException as exc:
+                    self._record_failure(result, thread, exc)
 
     async def mark_inactive_help(self, *, dry_run: bool) -> JobResult:
         result = JobResult("mark_inactive_help", dry_run)
@@ -113,10 +125,14 @@ class MaintenanceJobService:
             if last_activity is None:
                 continue
             if now - last_activity > timedelta(weeks=1):
-                result.changed += 1
-                result.messages.append(f"Marked inactive: {thread.name}")
-                if not dry_run:
-                    await thread.edit(archived=True, applied_tags=[inactive_tag])
+                if dry_run:
+                    self._record_change(result, f"Marked inactive: {thread.name}")
+                else:
+                    try:
+                        await thread.edit(archived=True, applied_tags=[inactive_tag])
+                        self._record_change(result, f"Marked inactive: {thread.name}")
+                    except discord.HTTPException as exc:
+                        self._record_failure(result, thread, exc)
                 continue
             if now - last_activity > timedelta(days=3):
                 last_message = thread.last_message
@@ -126,15 +142,19 @@ class MaintenanceJobService:
                     except discord.HTTPException:
                         last_message = None
                 if last_message is not None and last_message.author != self.bot.user:
-                    result.changed += 1
-                    result.messages.append(f"Reminder sent: {thread.name}")
-                    if not dry_run:
+                    if dry_run:
+                        self._record_change(result, f"Reminder sent: {thread.name}")
+                    else:
                         owner = thread.owner.mention if thread.owner else "Was this help request solved?"
-                        await thread.send(
-                            f"{owner} was this help request solved?\n"
-                            "If so please make sure to mark it as solved using `/tag_selector`",
-                            allowed_mentions=discord.AllowedMentions(users=True),
-                        )
+                        try:
+                            await thread.send(
+                                f"{owner} was this help request solved?\n"
+                                "If so please make sure to mark it as solved using `/tag_selector`",
+                                allowed_mentions=discord.AllowedMentions(users=True),
+                            )
+                            self._record_change(result, f"Reminder sent: {thread.name}")
+                        except discord.HTTPException as exc:
+                            self._record_failure(result, thread, exc)
         return result
 
     async def lock_resolved_submissions(self, *, dry_run: bool) -> JobResult:
@@ -152,8 +172,25 @@ class MaintenanceJobService:
                 continue
             if discord.utils.utcnow() - last_activity <= timedelta(days=1):
                 continue
-            result.changed += 1
             if not dry_run:
-                await thread.edit(archived=False, locked=True)
-                await thread.edit(archived=True)
+                try:
+                    await thread.edit(archived=False, locked=True)
+                    await thread.edit(archived=True)
+                    result.changed += 1
+                except discord.HTTPException as exc:
+                    self._record_failure(result, thread, exc)
+            else:
+                result.changed += 1
         return result
+
+    def _record_change(self, result: JobResult, message: str) -> None:
+        result.changed += 1
+        result.messages.append(message)
+
+    def _record_failure(
+        self,
+        result: JobResult,
+        thread: discord.Thread,
+        exc: discord.HTTPException,
+    ) -> None:
+        result.messages.append(f"Failed: {thread.name} ({exc})")
