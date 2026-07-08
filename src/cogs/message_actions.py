@@ -67,21 +67,43 @@ class MessageActionsCog(commands.Cog):
     async def _handle_first_thread_message(self, message: discord.Message) -> None:
         parent_id = message.channel.parent_id
         if parent_id == self.bot.settings.channels.submissions:
-            await message.pin()
-            embed = discord.Embed(
-                title="Thank you for your submission!",
-                description=self.bot.settings.copy.submission_prompt,
-            )
-            embed.set_image(url=self.bot.settings.copy.how_to_pin_image)
-            await message.channel.send(embed=embed)
-        elif parent_id == self.bot.settings.channels.help_forum:
-            await message.pin()
-            await message.channel.send(
-                embed=discord.Embed(
-                    title="Thank you for submitting your question!",
-                    description=self.bot.settings.copy.help_forum_prompt,
+            try:
+                await message.pin()
+                embed = discord.Embed(
+                    title="Thank you for your submission!",
+                    description=self.bot.settings.copy.submission_prompt,
                 )
-            )
+                embed.set_image(url=self.bot.settings.copy.how_to_pin_image)
+                await message.channel.send(embed=embed)
+                await self.bot.services.audit.log(
+                    "Message pinned",
+                    f"In: {message.channel.jump_url}",
+                )
+            except discord.HTTPException as exc:
+                await self.bot.services.audit.log(
+                    "Submission prompt failed",
+                    f"In: {message.channel.jump_url}\nError: {exc}",
+                    colour=discord.Color.red(),
+                )
+        elif parent_id == self.bot.settings.channels.help_forum:
+            try:
+                await message.pin()
+                await message.channel.send(
+                    embed=discord.Embed(
+                        title="Thank you for submitting your question!",
+                        description=self.bot.settings.copy.help_forum_prompt,
+                    )
+                )
+                await self.bot.services.audit.log(
+                    "Message pinned",
+                    f"In: {message.channel.jump_url}",
+                )
+            except discord.HTTPException as exc:
+                await self.bot.services.audit.log(
+                    "Help forum prompt failed",
+                    f"In: {message.channel.jump_url}\nError: {exc}",
+                    colour=discord.Color.red(),
+                )
 
     async def _pin_snapshot_message(self, message: discord.Message) -> None:
         try:

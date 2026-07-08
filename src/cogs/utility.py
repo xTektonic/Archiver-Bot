@@ -106,7 +106,7 @@ class UtilityCog(commands.Cog):
     async def restart(
         self,
         interaction: discord.Interaction,
-        update: bool = False,
+        update: bool = True,
         branch: str = "main",
     ) -> None:
         await defer(interaction)
