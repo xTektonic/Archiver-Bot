@@ -206,20 +206,29 @@ class PublishModal(discord.ui.Modal, title="Publish Post"):
                 colour=discord.Color.red(),
             )
             return
-        if (
-            isinstance(interaction.channel, discord.Thread)
-            and interaction.channel.parent_id == self.bot.settings.channels.submissions
-        ):
-            archived_tag = interaction.channel.parent.get_tag(self.bot.settings.tags.archived)
-            if archived_tag is not None:
-                await interaction.channel.edit(applied_tags=[archived_tag])
-            link = await interaction.channel.send(
-                f"Submission archived as {thread.jump_url}",
-                allowed_mentions=discord.AllowedMentions.none(),
+        cleanup_note = ""
+        try:
+            if (
+                isinstance(interaction.channel, discord.Thread)
+                and interaction.channel.parent_id == self.bot.settings.channels.submissions
+            ):
+                archived_tag = interaction.channel.parent.get_tag(self.bot.settings.tags.archived)
+                if archived_tag is not None:
+                    await interaction.channel.edit(applied_tags=[archived_tag])
+                link = await interaction.channel.send(
+                    f"Submission archived as {thread.jump_url}",
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+                await link.pin()
+        except Exception as exc:
+            cleanup_note = f"\nSubmission cleanup failed: {exc}"
+            await self.bot.services.audit.log(
+                "Archive submission cleanup failed",
+                f"Archive: {thread.jump_url}\nError: {exc}\nBy: {interaction.user.mention}",
+                colour=discord.Color.orange(),
             )
-            await link.pin()
         await interaction.followup.send(
-            f"Post published: {thread.jump_url}\nSet post tags:",
+            f"Post published: {thread.jump_url}{cleanup_note}\nSet post tags:",
             view=TagSelectView(thread),
             ephemeral=True,
         )
