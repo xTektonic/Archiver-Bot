@@ -50,8 +50,7 @@ class ParserService:
 
     async def parse_archive(self, guild: discord.Guild) -> ParseResult:
         total = 0
-        errors: list[ParseDiagnostic] = []
-        self.clear_output_dir()
+        errors = self.clear_output_dir()
         for channel in guild.channels:
             if (
                 isinstance(channel, discord.ForumChannel)
@@ -100,10 +99,21 @@ class ParserService:
         except Exception as exc:
             return [ParseDiagnostic(thread.id, thread.name, f"{type(exc).__name__}: {exc}")]
 
-    def clear_output_dir(self) -> None:
+    def clear_output_dir(self) -> list[ParseDiagnostic]:
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        errors: list[ParseDiagnostic] = []
         for path in self.output_dir.glob("*.json"):
-            path.unlink()
+            try:
+                path.unlink()
+            except OSError as exc:
+                errors.append(
+                    ParseDiagnostic(
+                        thread_id=0,
+                        thread_name=path.name,
+                        error=f"Could not remove old parsed file: {exc}",
+                    )
+                )
+        return errors
 
     def parse_text(self, text: str) -> dict[str, Any]:
         return cast(dict[str, Any], message_parse(text.split("\n")))

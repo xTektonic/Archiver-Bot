@@ -68,49 +68,56 @@ class ModerationService:
             return False
         if any(role.id in self.settings.roles.staff for role in message.author.roles):
             return False
-        attachments = [await attachment.to_file() for attachment in message.attachments]
-        content = message.content
-        await message.delete()
         try:
-            until = discord.utils.utcnow() + timedelta(seconds=20)
-            await message.author.timeout(until, reason="No-chat user caught")
-        except discord.Forbidden:
-            await self.audit.log("Timeout failed", f"Could not timeout {message.author.mention}.")
-        warn = discord.Embed(
-            title="Message blocked",
-            description=self.settings.copy.no_chat_timeout_message,
-            color=discord.Color.red(),
-        )
-        warn.set_image(url=self.settings.copy.no_chat_image)
-        try:
-            await message.author.send(embed=warn)
-        except discord.Forbidden:
-            pass
-        await message.channel.send(
-            content=message.author.mention,
-            embed=warn,
-            delete_after=20,
-            allowed_mentions=discord.AllowedMentions(users=True),
-        )
-        logs = self.bot.get_channel(self.settings.channels.log)
-        if isinstance(logs, discord.abc.Messageable):
-            await logs.send(
-                embed=discord.Embed(
-                    title="No-chat user caught",
-                    description=(
-                        f"User: {message.author.mention}\n"
-                        f"Channel: {message.channel.jump_url}\n"
-                        f"Content: {content}"
-                    ),
-                    colour=discord.Color.red(),
-                ),
-                files=attachments,
-                allowed_mentions=discord.AllowedMentions.none(),
+            attachments = [await attachment.to_file() for attachment in message.attachments]
+            content = message.content
+            await message.delete()
+            try:
+                until = discord.utils.utcnow() + timedelta(seconds=20)
+                await message.author.timeout(until, reason="No-chat user caught")
+            except discord.Forbidden:
+                await self.audit.log("Timeout failed", f"Could not timeout {message.author.mention}.")
+            warn = discord.Embed(
+                title="Message blocked",
+                description=self.settings.copy.no_chat_timeout_message,
+                color=discord.Color.red(),
             )
-        else:
+            warn.set_image(url=self.settings.copy.no_chat_image)
+            try:
+                await message.author.send(embed=warn)
+            except discord.Forbidden:
+                pass
+            await message.channel.send(
+                content=message.author.mention,
+                embed=warn,
+                delete_after=20,
+                allowed_mentions=discord.AllowedMentions(users=True),
+            )
+            logs = self.bot.get_channel(self.settings.channels.log)
+            if isinstance(logs, discord.abc.Messageable):
+                await logs.send(
+                    embed=discord.Embed(
+                        title="No-chat user caught",
+                        description=(
+                            f"User: {message.author.mention}\n"
+                            f"Channel: {message.channel.jump_url}\n"
+                            f"Content: {content}"
+                        ),
+                        colour=discord.Color.red(),
+                    ),
+                    files=attachments,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            else:
+                await self.audit.log(
+                    "No-chat user caught",
+                    f"User: {message.author.mention}\nChannel: {message.channel.jump_url}\nContent: {content}",
+                    colour=discord.Color.red(),
+                )
+        except Exception as exc:
             await self.audit.log(
-                "No-chat user caught",
-                f"User: {message.author.mention}\nChannel: {message.channel.jump_url}\nContent: {content}",
+                "Error in no-chat filter",
+                f"User: {message.author.mention}\nChannel: {message.channel.jump_url}\nError: {exc}",
                 colour=discord.Color.red(),
             )
         return True
