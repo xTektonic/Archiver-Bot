@@ -52,6 +52,12 @@ class StateService:
 
         await self.store.update(mutate)
 
+    async def set_accepted_submission_entries(self, entries: list[str]) -> None:
+        def mutate(state: BotState) -> None:
+            state.accepted_submission_entries = entries
+
+        await self.store.update(mutate)
+
     async def put_approval(self, approval: PendingApproval) -> None:
         def mutate(state: BotState) -> None:
             state.pending_approvals[approval.approval_id] = approval

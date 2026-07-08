@@ -8,8 +8,52 @@ from discord import app_commands
 from discord.ext import commands
 
 from app import ArchiverBot
-from services.checks import has_higher_role, has_moderator_role
+from services.checks import has_higher_role, has_moderator_role, has_staff_role
 from services.safe_discord import defer, respond
+
+OTHER_ARCHIVES = """**Storage Tech** - Item sorting and storage
+**Storage Catalog** - Development-oriented storage tech
+**Slimestone Tech Archive** - Flying machines and movable contraptions
+**Minecraft Tech Discord Recollector** - Index of TMC SMP and archive servers
+**TNT Archive** - TNT cannon tech and projectile physics
+**Tree Huggers** - Tree farm development
+**Huge Fungi Huggers** - Nether tree and foliage farm development
+**Cartchives** - Piston bolts and minecart based tech
+**Wither Archive** - Wither tech archive and development
+**Saints of Suppression** - Light and update suppression and skipping
+**Autocrafting Archive** - Crafters and modded autocrafting table tech
+**Computational Minecraft Archive** - TMC-oriented computational redstone
+**TMC Resources Archive** - Compilation of TMC tricks, links, and resources
+**Luke's Video Archive** - Chinese (BiliBili) tech recollector
+**Open Redstone** - Computational redstone community
+**Piston Door Catalogue** - Piston door index
+**Structureless Superflat Archive** - Structureless superflat tech
+**Russian Technical Minecraft Catalogue** - Russian TMC archive
+**Technical Bedrock Archive** - Bedrock TMC archive"""
+
+COMMANDS_LIST = """## Helper commands:
+**/tag_selector**: Set the tags of the current submission, correction, or help forum post
+**Pin** *(App command)*: Pin the selected message
+## Archiver commands:
+**/close_resolved**: Close posts marked solved, rejected, archived, inactive, or off-topic
+**/open_archived**: Open archived archive posts and pending managed posts
+**/delete_post**: Send a delete request to archiver chat for another archiver to approve
+**/edit_post_title**: Send a title edit request to archiver chat for another archiver to approve
+**/track**: Make a post in the submission tracker for the current submission post
+**/tracker_list**: Rebuild the submission tracker summary
+**/parse_post**: Parse one archive post
+**/parse_channel**: Parse all posts in one archive forum
+**/parse_archive**: Parse all configured archive forums
+**Edit** *(App command)*: Edit a message sent by the bot
+**Delete** *(App command)*: Send a delete request to archiver chat for another archiver to approve
+**Publish post** *(App command)*: Create a new thread in the archives with the selected message as the starter
+**Append post** *(App command)*: Append the selected message to an existing archive post
+## Mod commands:
+**/send**: Send a message or embed through the bot to the current channel
+**/restart**: Restart the bot
+**/servers**: Send the list of other archive servers to the current channel
+**/guild_list**: List the first 10 servers the bot is in
+**/leave**: Make the bot leave a server by ID"""
 
 
 class UtilityCog(commands.Cog):
@@ -77,6 +121,22 @@ class UtilityCog(commands.Cog):
             )
         except Exception as exc:
             await respond(interaction, f"Error while running the command: {exc}")
+
+    @app_commands.command(name="servers", description="Send the list of other archive servers")
+    @app_commands.check(has_moderator_role)
+    async def servers(self, interaction: discord.Interaction) -> None:
+        embed = discord.Embed(
+            title="Other Archive Servers",
+            description=OTHER_ARCHIVES,
+            color=discord.Color.light_embed(),
+        )
+        await interaction.channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+        await respond(interaction, "Embed sent.")
+
+    @app_commands.command(name="help", description="Send the Archiver Bot command list")
+    @app_commands.check(has_staff_role)
+    async def help(self, interaction: discord.Interaction) -> None:
+        await respond(interaction, embed=discord.Embed(description=COMMANDS_LIST))
 
 
 async def setup(bot: ArchiverBot) -> None:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import discord
 from discord.ext import commands
 
@@ -12,6 +14,7 @@ from services.time import utc_now_iso
 
 class SubmissionTrackerService:
     VOTE_EMOJIS = ("❌", "🔴", "🟢", "✅")
+    TESTING_EMOJI = "🧪"
 
     def __init__(
         self,
@@ -98,6 +101,8 @@ class SubmissionTrackerService:
         tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)
         if not isinstance(tracker_channel, discord.TextChannel):
             return
+        await self._import_tracker_messages(tracker_channel)
+        await self._refresh_accepted_submissions()
         bot_state = await self.state.get()
         for message_id in bot_state.tracker_summary_message_ids:
             try:
@@ -127,6 +132,75 @@ class SubmissionTrackerService:
             legacy_lines=bot_state.accepted_submission_entries,
         )
         await self.state.set_tracker_summary_messages(sent_ids)
+
+    async def _import_tracker_messages(self, tracker_channel: discord.TextChannel) -> None:
+        bot_state = await self.state.get()
+        summary_ids = set(bot_state.tracker_summary_message_ids)
+        known_ids = {
+            record.tracker_message_id
+            for record in bot_state.tracked_submissions.values()
+            if record.tracker_message_id is not None
+        }
+        async for message in tracker_channel.history(limit=None, oldest_first=True):
+            if message.id in summary_ids or message.id in known_ids:
+                continue
+            if not message.content.startswith("## ["):
+                continue
+            record = self._record_from_tracker_message(message)
+            if record is not None:
+                await self.state.upsert_submission(record)
+
+    def _record_from_tracker_message(self, message: discord.Message) -> TrackedSubmission | None:
+        title_match = re.match(r"## \[(?P<title>[^\]]+)\]\((?P<url>[^)]+)\)", message.content)
+        if title_match is None:
+            return None
+        thread_id = self._last_snowflake(title_match.group("url"))
+        if thread_id is None:
+            return None
+        discussion_id = None
+        lines = message.content.splitlines()
+        if len(lines) > 1:
+            discussion_id = self._last_snowflake(lines[1])
+        status: SubmissionStatus = (
+            "awaiting_testing"
+            if any(str(reaction.emoji) == self.TESTING_EMOJI for reaction in message.reactions)
+            else "pending"
+        )
+        created_at = message.created_at.isoformat()
+        return TrackedSubmission(
+            submission_thread_id=thread_id,
+            title=title_match.group("title"),
+            status=status,
+            tracker_message_id=message.id,
+            tracker_thread_id=discussion_id,
+            created_at=created_at,
+            updated_at=created_at,
+        )
+
+    def _last_snowflake(self, text: str) -> int | None:
+        matches = re.findall(r"\d{15,25}", text)
+        if not matches:
+            return None
+        return int(matches[-1])
+
+    async def _refresh_accepted_submissions(self) -> None:
+        submissions = self.bot.get_channel(self.settings.channels.submissions)
+        if not isinstance(submissions, discord.ForumChannel):
+            return
+        entries: list[str] = []
+        for thread in submissions.threads:
+            tag_ids = {tag.id for tag in thread.applied_tags}
+            has_other_resolved_tag = any(
+                tag_id in self.settings.tags.resolved and tag_id != self.settings.tags.accepted
+                for tag_id in tag_ids
+            )
+            if (
+                self.settings.tags.accepted in tag_ids
+                and self.settings.tags.archived not in tag_ids
+                and not has_other_resolved_tag
+            ):
+                entries.append(f"- **[{thread.name}]({thread.jump_url})**")
+        await self.state.set_accepted_submission_entries(entries)
 
     async def _finalize_tracker_message(self, record: TrackedSubmission) -> None:
         if record.tracker_message_id is None:

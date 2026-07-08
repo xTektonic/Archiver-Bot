@@ -39,12 +39,19 @@ class ModerationService:
         await target.send(
             embed=embed,
             files=files,
-            view=DMRelayView(self, message.author.id),
+            view=DMRelayView(self, message),
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
     async def block_dm_user(self, user_id: int) -> bool:
         return await self.state.block_dm_user(user_id)
+
+    async def reply_to_dm(self, original: discord.Message, content: str) -> None:
+        await original.channel.send(content)
+        await self.audit.log(
+            "DM sent",
+            f"To: {original.author} {original.author.mention}\n\n{content}",
+        )
 
     async def handle_no_chat_user(self, message: discord.Message) -> None:
         if not isinstance(message.author, discord.Member):
@@ -87,16 +94,46 @@ class ModerationService:
             await logs.send(files=attachments)
 
 
+class DMReplyModal(discord.ui.Modal, title="Reply to DM"):
+    def __init__(self, service: ModerationService, original: discord.Message):
+        super().__init__()
+        self.service = service
+        self.original = original
+        self.message: discord.ui.TextInput[DMReplyModal] = discord.ui.TextInput(
+            label="Message content",
+            style=discord.TextStyle.long,
+            required=True,
+        )
+        self.add_item(self.message)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await self.service.reply_to_dm(self.original, self.message.value)
+        await interaction.response.send_message("DM sent.", ephemeral=True)
+
+
 class DMRelayView(discord.ui.View):
-    def __init__(self, service: ModerationService, user_id: int):
+    def __init__(self, service: ModerationService, original: discord.Message):
         super().__init__(timeout=86400)
         self.service = service
-        self.user_id = user_id
+        self.original = original
+
+    @discord.ui.button(label="Reply", style=discord.ButtonStyle.blurple)
+    async def reply_button(
+        self, interaction: discord.Interaction, _button: discord.ui.Button
+    ) -> None:
+        await interaction.response.send_modal(DMReplyModal(self.service, self.original))
+
+    @discord.ui.button(label="Delete", style=discord.ButtonStyle.red)
+    async def delete_button(
+        self, interaction: discord.Interaction, _button: discord.ui.Button
+    ) -> None:
+        if interaction.message is not None:
+            await interaction.message.delete()
 
     @discord.ui.button(label="Block", style=discord.ButtonStyle.red)
     async def block_button(
         self, interaction: discord.Interaction, _button: discord.ui.Button
     ) -> None:
-        added = await self.service.block_dm_user(self.user_id)
+        added = await self.service.block_dm_user(self.original.author.id)
         message = "User blocked." if added else "User was already blocked."
         await interaction.response.send_message(message, ephemeral=True)

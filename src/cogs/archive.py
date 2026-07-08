@@ -41,10 +41,15 @@ class SendModal(discord.ui.Modal, title="Send Message"):
         await interaction.response.defer(ephemeral=True)
         embed = None
         if self.has_embed:
+            try:
+                colour = discord.Colour.from_str(self.embed_colour.value or "#FFFFFF")
+            except ValueError:
+                await interaction.followup.send("Embed colour must look like #FFFFFF.", ephemeral=True)
+                return
             embed = discord.Embed(
                 title=self.embed_title.value,
                 description=self.embed_text.value,
-                colour=discord.Colour.from_str(self.embed_colour.value or "#FFFFFF"),
+                colour=colour,
             )
         await self.target_channel.send(
             content=self.message_text.value,
@@ -146,6 +151,9 @@ class PublishModal(discord.ui.Modal, title="Publish Post"):
         await interaction.response.defer(ephemeral=True)
         channel = self.channel_select.values[0]
         archive_channel = await interaction.client.fetch_channel(channel.id)
+        if not isinstance(archive_channel, discord.ForumChannel):
+            await interaction.followup.send("The selected channel is not a forum.", ephemeral=True)
+            return
         thread = await self.bot.services.archive.publish(
             interaction.channel,
             archive_channel,
@@ -193,6 +201,9 @@ class AppendModal(discord.ui.Modal, title="Append to Post"):
         thread = interaction.client.get_channel(self.thread_select.values[0].id)
         if not isinstance(thread, discord.Thread):
             thread = await interaction.client.fetch_channel(self.thread_select.values[0].id)
+        if not isinstance(thread, discord.Thread):
+            await interaction.followup.send("The selected channel is not a thread.", ephemeral=True)
+            return
         message = await self.bot.services.archive.append(thread, self.post_content.value, interaction.user)
         await interaction.followup.send(f"Post appended: {message.jump_url}", ephemeral=True)
 
@@ -275,6 +286,9 @@ class ArchiveCog(commands.Cog):
     @app_commands.command(name="delete_post", description="Request deletion of an archive post")
     @app_commands.check(has_higher_role)
     async def delete_post(self, interaction: discord.Interaction, thread: discord.Thread) -> None:
+        if not self._is_archive_thread(thread):
+            await respond(interaction, "That is not an archive thread.")
+            return
         await self.bot.services.approvals.request(
             "delete_thread",
             interaction.user,
@@ -286,6 +300,9 @@ class ArchiveCog(commands.Cog):
     @app_commands.command(name="edit_post_title", description="Request an archive post title edit")
     @app_commands.check(has_higher_role)
     async def edit_post_title(self, interaction: discord.Interaction, thread: discord.Thread) -> None:
+        if not self._is_archive_thread(thread):
+            await respond(interaction, "That is not an archive thread.")
+            return
         await interaction.response.send_modal(EditTitleModal(self.bot, thread))
 
     @app_commands.command(name="grant_role", description="Grant archived designer or submitter role")
@@ -309,6 +326,13 @@ class ArchiveCog(commands.Cog):
         )
         await self.bot.services.archive.grant_role(interaction.guild, member, role_id)
         await respond(interaction, "Role granted.")
+
+    def _is_archive_thread(self, thread: discord.Thread) -> bool:
+        parent = thread.parent
+        return bool(
+            isinstance(parent, discord.ForumChannel)
+            and parent.category_id not in self.bot.settings.categories.non_archive
+        )
 
 
 async def setup(bot: ArchiverBot) -> None:

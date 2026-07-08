@@ -32,6 +32,8 @@ class ArchivePublishingService:
         *,
         announce: bool,
     ) -> discord.Thread:
+        if archive_channel.category_id in self.settings.categories.non_archive:
+            raise ValueError("The selected forum is not an archive forum.")
         ensure_content_safe(content, limit=self.settings.discord_char_limit)
         created = await archive_channel.create_thread(
             name=title,

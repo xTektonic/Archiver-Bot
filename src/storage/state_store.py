@@ -29,7 +29,9 @@ class StateStore:
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         self.parsed_dir.mkdir(parents=True, exist_ok=True)
         if not self.state_path.exists():
-            await self.save(self._load_legacy_state())
+            state = self._load_legacy_state()
+            await self.save(state)
+            self._remove_legacy_files()
             return
         state = await self.load()
         if state.version != 1:
@@ -45,6 +47,13 @@ class StateStore:
         state.tracker_summary_message_ids = self._load_int_list(legacy_messages)
         state.accepted_submission_entries = self._load_str_list(legacy_accepted)
         return state
+
+    def _remove_legacy_files(self) -> None:
+        for path in (Path("blacklist.json"), Path("messages.json"), Path("accepted.json")):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                continue
 
     def _load_int_list(self, path: Path) -> list[int]:
         values = self._load_json_list(path)
