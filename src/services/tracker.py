@@ -89,13 +89,55 @@ class SubmissionTrackerService:
                 updated_at=now,
             )
         else:
+            previous_title = existing.title
             existing.title = thread.name
-            existing.status = status
+            if status != "unknown":
+                existing.status = status
             existing.updated_at = now
+            if previous_title != thread.name:
+                await self._sync_tracker_title(existing, thread)
         await self.state.upsert_submission(existing)
         if status in {"accepted", "archived", "rejected"}:
             await self._finalize_tracker_message(existing)
         await self.rebuild_summary()
+
+    async def _sync_tracker_title(
+        self, record: TrackedSubmission, thread: discord.Thread
+    ) -> None:
+        if record.tracker_message_id is None:
+            return
+        tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)
+        if not isinstance(tracker_channel, discord.TextChannel):
+            return
+        try:
+            tracker_message = await tracker_channel.fetch_message(record.tracker_message_id)
+        except discord.HTTPException:
+            return
+
+        discussion_url = ""
+        discussion = await self._fetch_tracker_discussion(record.tracker_thread_id)
+        if discussion is not None:
+            discussion_url = discussion.jump_url
+            try:
+                await discussion.edit(name=thread.name)
+            except discord.HTTPException:
+                await self.audit.log(
+                    "Tracker discussion rename failed",
+                    f"Could not rename discussion thread for {thread.jump_url}.",
+                )
+        content = f"## [{thread.name}]({thread.jump_url})"
+        if discussion_url:
+            content += f"\n{discussion_url}"
+        try:
+            await tracker_message.edit(
+                content=content,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+        except discord.HTTPException:
+            await self.audit.log(
+                "Tracker message rename failed",
+                f"Could not rename tracker message for {thread.jump_url}.",
+            )
 
     async def rebuild_summary(self) -> None:
         tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)

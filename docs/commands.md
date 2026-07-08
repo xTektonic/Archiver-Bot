@@ -1,6 +1,6 @@
 # Commands
 
-Archiver-Bot syncs commands on startup. `/restart` also has a `sync_commands` option for syncing immediately before a restart.
+Archiver-Bot syncs commands on startup. `/restart` can optionally pull updates before restarting; command sync only runs after an update.
 
 ## Slash Commands
 
@@ -11,9 +11,10 @@ Archiver-Bot syncs commands on startup. `/restart` also has a `sync_commands` op
   Makes the bot leave a guild by ID. Moderator only.  
   `server_id`: Discord guild ID.
 
-- `/restart sync_commands`  
-  Restarts the bot process. Moderator only.  
-  `sync_commands`: if true, syncs Discord commands before restarting.
+- `/restart update branch`
+  Restarts the bot process. Moderator only.
+  `update`: defaults false. If true, pulls from the selected branch and syncs Discord commands before restarting.
+  `branch`: defaults `main`.
 
 - `/fetch_links message_id`  
   Returns attachment URLs from a message in the current channel. Archiver/moderator only.  
@@ -50,11 +51,11 @@ Archiver-Bot syncs commands on startup. `/restart` also has a `sync_commands` op
 
 - `/close_resolved dry_run`  
   Closes solved/rejected/archived/inactive/off-topic posts. Archiver/moderator only.  
-  `dry_run`: defaults true; reports count without editing when true.
+  `dry_run`: defaults false; reports count without editing when true.
 
 - `/open_archived dry_run`  
   Opens archived archive posts. Archiver/moderator only.  
-  `dry_run`: defaults true; reports count without editing when true.
+  `dry_run`: defaults false; reports count without editing when true.
 
 - `/tag_selector given_tag`  
   Sets forum tags for the current post. Staff can use it broadly; help post owners can use it in help posts.  

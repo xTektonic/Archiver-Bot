@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 
 import discord
 from discord.ext import commands
@@ -180,6 +181,18 @@ class ApprovalService:
         thread = await self.bot.fetch_channel(approval.target_thread_id)
         if not isinstance(thread, discord.Thread):
             raise ValueError("delete_thread approval target is not a thread")
+        for parsed_file in (
+            self.settings.data_dir / "parsed" / f"{thread.id}.json",
+            Path("parsed") / f"{thread.id}.json",
+        ):
+            try:
+                parsed_file.unlink(missing_ok=True)
+            except OSError:
+                await self.audit.log(
+                    "Parsed file cleanup failed",
+                    f"Could not remove {parsed_file}.",
+                    colour=discord.Color.orange(),
+                )
         await thread.delete()
 
     async def _edit_thread_title(self, approval: PendingApproval) -> None:

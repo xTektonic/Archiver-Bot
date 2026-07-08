@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 
@@ -50,7 +51,7 @@ COMMANDS_LIST = """## Helper commands:
 **Append post** *(App command)*: Append the selected message to an existing archive post
 ## Mod commands:
 **/send**: Send a message or embed through the bot to the current channel
-**/restart**: Restart the bot
+**/restart**: Optionally update from a branch, sync commands, then restart
 **/servers**: Send the list of other archive servers to the current channel
 **/guild_list**: List the first 10 servers the bot is in
 **/leave**: Make the bot leave a server by ID"""
@@ -97,14 +98,44 @@ class UtilityCog(commands.Cog):
             await respond(interaction, f"Error trying to leave server: {exc}")
 
     @app_commands.command(name="restart", description="Restart the bot process")
-    @app_commands.describe(sync_commands="Sync commands before restarting")
+    @app_commands.describe(
+        update="Pull updates before restarting",
+        branch="Branch to pull from when updating",
+    )
     @app_commands.check(has_moderator_role)
-    async def restart(self, interaction: discord.Interaction, sync_commands: bool = False) -> None:
+    async def restart(
+        self,
+        interaction: discord.Interaction,
+        update: bool = False,
+        branch: str = "main",
+    ) -> None:
         await defer(interaction)
-        if sync_commands:
+        if update:
+            await interaction.followup.send(f"Updating from `{branch}`...", ephemeral=True)
+            process = await asyncio.create_subprocess_exec(
+                "git",
+                "pull",
+                "origin",
+                branch,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await process.communicate()
+            if process.returncode != 0:
+                await interaction.followup.send(
+                    "Update failed:\n"
+                    f"```{stderr.decode(errors='replace').strip()[:1800]}```",
+                    ephemeral=True,
+                )
+                return
             await self.bot.tree.sync()
-        message = "Commands synced. Restarting..." if sync_commands else "Restarting..."
-        await interaction.followup.send(message, ephemeral=True)
+            await interaction.followup.send(
+                "Update complete and commands synced:\n"
+                f"```{stdout.decode(errors='replace').strip()[:1700]}```\nRestarting...",
+                ephemeral=True,
+            )
+        else:
+            await interaction.followup.send("Restarting...", ephemeral=True)
         os.execv(sys.executable, [sys.executable, *sys.argv])
 
     @app_commands.command(name="fetch_links", description="Return attachment links from a message")

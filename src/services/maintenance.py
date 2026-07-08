@@ -32,6 +32,13 @@ class MaintenanceJobService:
             for thread in channel.threads:
                 if thread.archived or thread.flags.pinned:
                     continue
+                if thread.locked:
+                    result.changed += 1
+                    result.messages.append(f"{thread.name} in {channel.name}")
+                    if not dry_run:
+                        await thread.edit(locked=False)
+                        await thread.edit(archived=True, locked=True)
+                    continue
                 if any(tag.name.lower() in resolved_names for tag in thread.applied_tags):
                     result.changed += 1
                     result.messages.append(f"{thread.name} in {channel.name}")

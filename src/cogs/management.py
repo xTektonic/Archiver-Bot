@@ -62,13 +62,13 @@ class ManagementCog(commands.Cog):
 
     @app_commands.command(name="close_resolved", description="Close solved/rejected/archived posts")
     @app_commands.check(has_higher_role)
-    async def close_resolved(self, interaction: discord.Interaction, dry_run: bool = True) -> None:
+    async def close_resolved(self, interaction: discord.Interaction, dry_run: bool = False) -> None:
         result = await self.bot.services.maintenance.close_resolved(interaction.guild, dry_run=dry_run)
         await respond(interaction, self._format_job(result))
 
     @app_commands.command(name="open_archived", description="Open archived archive posts")
     @app_commands.check(has_higher_role)
-    async def open_archived(self, interaction: discord.Interaction, dry_run: bool = True) -> None:
+    async def open_archived(self, interaction: discord.Interaction, dry_run: bool = False) -> None:
         result = await self.bot.services.maintenance.open_archived(interaction.guild, dry_run=dry_run)
         await respond(interaction, self._format_job(result))
 

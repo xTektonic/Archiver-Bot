@@ -15,7 +15,7 @@
 
 1. Restart the bot.
 2. Confirm commands appear.
-3. If needed, run `/restart sync_commands:true`.
+3. If needed, run `/restart update:true branch:main`.
 
 ## State Looks Wrong
 

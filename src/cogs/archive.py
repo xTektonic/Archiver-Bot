@@ -5,6 +5,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from app import ArchiverBot
+from cogs.management import TagSelectView
 from services.checks import has_higher_role
 from services.safe_discord import respond
 
@@ -174,7 +175,11 @@ class PublishModal(discord.ui.Modal, title="Publish Post"):
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             await link.pin()
-        await interaction.followup.send(f"Post published: {thread.jump_url}", ephemeral=True)
+        await interaction.followup.send(
+            f"Post published: {thread.jump_url}\nSet post tags:",
+            view=TagSelectView(thread),
+            ephemeral=True,
+        )
 
 
 class AppendModal(discord.ui.Modal, title="Append to Post"):
@@ -206,6 +211,32 @@ class AppendModal(discord.ui.Modal, title="Append to Post"):
             return
         message = await self.bot.services.archive.append(thread, self.post_content.value, interaction.user)
         await interaction.followup.send(f"Post appended: {message.jump_url}", ephemeral=True)
+
+
+class AppendPrompt(discord.ui.View):
+    def __init__(self, bot: ArchiverBot, draft: discord.Message, thread: discord.Thread):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.draft = draft
+        self.thread = thread
+
+    @discord.ui.button(label="Same thread", style=discord.ButtonStyle.green)
+    async def same_thread(
+        self, interaction: discord.Interaction, _button: discord.ui.Button
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        message = await self.bot.services.archive.append(
+            self.thread,
+            self.draft.content,
+            interaction.user,
+        )
+        await interaction.followup.send(f"Post appended: {message.jump_url}", ephemeral=True)
+
+    @discord.ui.button(label="Different thread", style=discord.ButtonStyle.gray)
+    async def different_thread(
+        self, interaction: discord.Interaction, _button: discord.ui.Button
+    ) -> None:
+        await interaction.response.send_modal(AppendModal(self.bot, self.draft))
 
 
 class EditTitleModal(discord.ui.Modal, title="Edit Post Title"):
@@ -281,7 +312,24 @@ class ArchiveCog(commands.Cog):
 
     @app_commands.check(has_higher_role)
     async def append_post(self, interaction: discord.Interaction, message: discord.Message) -> None:
-        await interaction.response.send_modal(AppendModal(self.bot, message))
+        last_thread_id = (await self.bot.services.state.get()).last_archive_thread_id
+        if last_thread_id is None:
+            await interaction.response.send_modal(AppendModal(self.bot, message))
+            return
+        last_thread = interaction.client.get_channel(last_thread_id)
+        if not isinstance(last_thread, discord.Thread):
+            try:
+                last_thread = await interaction.client.fetch_channel(last_thread_id)
+            except discord.HTTPException:
+                last_thread = None
+        if not isinstance(last_thread, discord.Thread):
+            await interaction.response.send_modal(AppendModal(self.bot, message))
+            return
+        await interaction.response.send_message(
+            f"Append to **{last_thread.name}** or choose a different thread?",
+            view=AppendPrompt(self.bot, message, last_thread),
+            ephemeral=True,
+        )
 
     @app_commands.command(name="delete_post", description="Request deletion of an archive post")
     @app_commands.check(has_higher_role)
