@@ -5,7 +5,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from app import ArchiverBot
-from services.checks import has_higher_role
+from services.checks import has_higher_role, has_moderator_role
 from services.safe_discord import defer
 
 
@@ -37,6 +37,25 @@ class SubmissionsCog(commands.Cog):
         await defer(interaction)
         await self.bot.services.tracker.rebuild_summary()
         await interaction.followup.send("Tracker list rebuilt.", ephemeral=True)
+
+    @app_commands.command(name="tracker_sync", description="Audit and repair submission tracker state")
+    @app_commands.describe(
+        dry_run="Preview changes without modifying Discord or state",
+        include_archived="Also scan archived submission threads",
+    )
+    @app_commands.check(has_moderator_role)
+    async def tracker_sync(
+        self,
+        interaction: discord.Interaction,
+        dry_run: bool = True,
+        include_archived: bool = False,
+    ) -> None:
+        await defer(interaction)
+        result = await self.bot.services.tracker.sync_all(
+            dry_run=dry_run,
+            include_archived=include_archived,
+        )
+        await interaction.followup.send(embed=result.to_embed(), ephemeral=True)
 
     @app_commands.command(name="track", description="Add the current submission post to the tracker")
     @app_commands.check(has_higher_role)

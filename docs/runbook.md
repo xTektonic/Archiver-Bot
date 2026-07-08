@@ -27,9 +27,13 @@
 
 ## Tracker Summary Is Wrong
 
-1. Run `/tracker_list`.
-2. Check `tracked_submissions` in `state.json`.
-3. Check tracker channel IDs in `src/config/settings.py`.
+1. Check the startup tracker sync dry-run embed in the bot log channel.
+2. Run `/tracker_list`.
+3. If posts were created or retagged while the bot was offline, run `/tracker_sync dry_run:true`.
+4. If the dry run looks correct, run `/tracker_sync dry_run:false`.
+5. Use `/tracker_sync include_archived:true` when older archived submission threads also need to be checked.
+6. Check `tracked_submissions` in `state.json`.
+7. Check tracker channel IDs in `src/config/settings.py`.
 
 ## Approval Button Does Nothing
 

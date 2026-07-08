@@ -73,14 +73,14 @@ class ManagementCog(commands.Cog):
     async def close_resolved(self, interaction: discord.Interaction, dry_run: bool = False) -> None:
         await defer(interaction)
         result = await self.bot.services.maintenance.close_resolved(interaction.guild, dry_run=dry_run)
-        await interaction.followup.send(self._format_job(result), ephemeral=True)
+        await interaction.followup.send(embed=self._job_embed(result), ephemeral=True)
 
     @app_commands.command(name="open_archived", description="Open archived archive posts")
     @app_commands.check(has_higher_role)
     async def open_archived(self, interaction: discord.Interaction, dry_run: bool = False) -> None:
         await defer(interaction)
         result = await self.bot.services.maintenance.open_archived(interaction.guild, dry_run=dry_run)
-        await interaction.followup.send(self._format_job(result), ephemeral=True)
+        await interaction.followup.send(embed=self._job_embed(result), ephemeral=True)
 
     @app_commands.command(name="tag_selector", description="Set forum post tags")
     async def tag_selector(self, interaction: discord.Interaction, given_tag: str = "") -> None:
@@ -136,17 +136,25 @@ class ManagementCog(commands.Cog):
         await interaction.followup.send("Message pinned.", ephemeral=True)
 
     async def _log_job(self, result: JobResult) -> None:
-        await self.bot.services.audit.log(result.name, self._format_job(result))
+        await self.bot.services.audit.log_embed(self._job_embed(result))
 
-    def _format_job(self, result: JobResult) -> str:
-        mode = "dry run" if result.dry_run else "applied"
-        content = f"{result.name}: {result.changed} change(s), {mode}."
-        if not result.messages:
-            return content
-        details = "\n".join(f"- {message}" for message in result.messages)
-        if len(content) + len(details) + 2 > self.bot.settings.discord_char_limit:
-            details = details[: self.bot.settings.discord_char_limit - len(content) - 8] + "\n..."
-        return f"{content}\n{details}"
+    def _job_embed(self, result: JobResult) -> discord.Embed:
+        mode = "Dry run" if result.dry_run else "Applied"
+        embed = discord.Embed(
+            title=result.name,
+            description=f"{mode}: {result.changed} change(s).",
+            colour=discord.Color.orange() if result.dry_run else discord.Color.green(),
+        )
+        if result.messages:
+            details = "\n".join(f"- {message}" for message in result.messages[:10])
+            if len(result.messages) > 10:
+                details += f"\n- ...and {len(result.messages) - 10} more"
+            embed.add_field(
+                name="Details",
+                value=details[:1020] + "..." if len(details) > 1024 else details,
+                inline=False,
+            )
+        return embed
 
 
 async def setup(bot: ArchiverBot) -> None:
