@@ -68,7 +68,15 @@ class ApprovalService:
             approval.approval_channel_id = getattr(message.channel, "id", None)
         else:
             raise RuntimeError("Approval channel is not messageable.")
-        await self.state.update_approval(approval)
+        try:
+            await self.state.update_approval(approval)
+        except Exception:
+            try:
+                await message.delete()
+            except discord.HTTPException:
+                pass
+            await self.state.remove_approval(approval.approval_id)
+            raise
         return approval
 
     async def approve(self, interaction: discord.Interaction, approval_id: str) -> None:
@@ -113,6 +121,7 @@ class ApprovalService:
         except discord.HTTPException:
             log = None
         approval.result_log_url = log.jump_url if log else None
+        await self.state.update_approval(approval)
         await self.state.remove_approval(approval.approval_id)
         try:
             if interaction.message is None:
@@ -152,12 +161,21 @@ class ApprovalService:
                     ephemeral=True,
                 )
             return
+        await self.state.update_approval(approval)
         await self.state.remove_approval(approval.approval_id)
 
     async def restore_pending_views(self) -> None:
         bot_state = await self.state.get()
         for approval in bot_state.pending_approvals.values():
-            if approval.status != "pending" or approval.approval_channel_id is None:
+            if approval.status != "pending":
+                await self.state.remove_approval(approval.approval_id)
+                continue
+            if approval.approval_channel_id is None or approval.approval_message_id is None:
+                await self.state.remove_approval(approval.approval_id)
+                await self._log_restore_cleanup(
+                    approval,
+                    "approval is missing Discord message metadata",
+                )
                 continue
             if is_expired(approval.expires_at):
                 approval.status = "expired"
@@ -172,15 +190,28 @@ class ApprovalService:
                 try:
                     channel = await self.bot.fetch_channel(approval.approval_channel_id)
                 except discord.HTTPException:
+                    await self.state.remove_approval(approval.approval_id)
+                    await self._log_restore_cleanup(
+                        approval,
+                        "approval channel could not be fetched",
+                    )
                     continue
             if not isinstance(channel, discord.TextChannel | discord.Thread):
-                continue
-            if approval.approval_message_id is None:
+                await self.state.remove_approval(approval.approval_id)
+                await self._log_restore_cleanup(
+                    approval,
+                    "approval channel is not messageable",
+                )
                 continue
             try:
                 message = await channel.fetch_message(approval.approval_message_id)
                 await message.edit(view=ApprovalView(self, approval.approval_id, timeout=seconds_until(approval.expires_at)))
             except discord.HTTPException:
+                await self.state.remove_approval(approval.approval_id)
+                await self._log_restore_cleanup(
+                    approval,
+                    "approval message could not be fetched or updated",
+                )
                 continue
 
     async def _get_pending(
@@ -230,6 +261,16 @@ class ApprovalService:
         try:
             message = await channel.fetch_message(approval.approval_message_id)
             await message.edit(embed=embed, view=None)
+        except discord.HTTPException:
+            return
+
+    async def _log_restore_cleanup(self, approval: PendingApproval, reason: str) -> None:
+        try:
+            await self.audit.log(
+                "Approval restore cleanup",
+                f"Approval {approval.approval_id} removed: {reason}.",
+                colour=discord.Color.orange(),
+            )
         except discord.HTTPException:
             return
 
