@@ -111,21 +111,9 @@ class SubmissionTrackerService:
             await self.audit.log("Tracker unavailable", "Submission tracker channel was not found.")
             return None
 
-        discussion = await tracker_channel.create_thread(
-            name=thread.name,
-            type=discord.ChannelType.public_thread,
-        )
-        system_message = tracker_channel.get_partial_message(discussion.id)
-        try:
-            await system_message.delete()
-        except discord.HTTPException:
-            pass
-        await discussion.send(
-            f"For discussion and debate regarding the archival status of {thread.jump_url}",
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
-        ping = await discussion.send(f"<@&{self.settings.roles.archiver}> chat away!")
-        await ping.pin()
+        discussion = await self._create_tracker_discussion(thread)
+        if discussion is None:
+            return None
         tracker_message = await tracker_channel.send(
             f"## [{thread.name}]({thread.jump_url})\n{discussion.jump_url}",
             allowed_mentions=discord.AllowedMentions.none(),
@@ -170,6 +158,11 @@ class SubmissionTrackerService:
             result.failures.append("Submissions forum was not found.")
             return result
 
+        bot_state = await self.state.get()
+        state_records = {
+            record.submission_thread_id: record
+            for record in bot_state.tracked_submissions.values()
+        }
         tracker_records, duplicate_message_ids = await self._scan_tracker_records(
             tracker_channel,
             persist=not dry_run,
@@ -187,19 +180,10 @@ class SubmissionTrackerService:
             result.duplicates.append(
                 f"Duplicate tracker messages for submission {submission_id}: {', '.join(str(x) for x in message_ids)}"
             )
-            if not dry_run:
-                for message_id in message_ids:
-                    try:
-                        await (await tracker_channel.fetch_message(message_id)).delete()
-                        result.pruned.append(f"Deleted duplicate tracker message {message_id}.")
-                    except discord.HTTPException as exc:
-                        result.failures.append(
-                            f"Could not delete duplicate tracker message {message_id}: {exc}"
-                        )
 
         for thread in submission_threads.values():
             status = self._status_from_submission(thread)
-            record = tracker_records.get(thread.id)
+            record = tracker_records.get(thread.id) or state_records.get(thread.id)
             if status in {"archived", "rejected"}:
                 if record is not None:
                     result.finalized.append(f"{status}: {thread.name}")
@@ -229,6 +213,10 @@ class SubmissionTrackerService:
             if record.status not in {"pending", "awaiting_testing"}:
                 record.status = "pending"
                 changed = True
+            if await self._tracker_discussion_missing(record):
+                result.updated.append(f"Recreated missing tracker discussion for {thread.name}")
+                if not dry_run:
+                    await self._repair_tracker_discussion(record, thread)
             if changed:
                 result.updated.append(thread.name)
                 if not dry_run:
@@ -288,10 +276,38 @@ class SubmissionTrackerService:
                 result.updated.append(fetched_thread.name)
                 if not dry_run:
                     await self._sync_tracker_record(record, fetched_thread)
+            elif await self._tracker_discussion_missing(record):
+                result.updated.append(
+                    f"Recreated missing tracker discussion for {fetched_thread.name}"
+                )
+                if not dry_run:
+                    await self._repair_tracker_discussion(record, fetched_thread)
 
         if not dry_run:
             await self.rebuild_summary()
         return result
+
+    async def _create_tracker_discussion(self, thread: discord.Thread) -> discord.Thread | None:
+        tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)
+        if not isinstance(tracker_channel, discord.TextChannel):
+            await self.audit.log("Tracker unavailable", "Submission tracker channel was not found.")
+            return None
+        discussion = await tracker_channel.create_thread(
+            name=thread.name,
+            type=discord.ChannelType.public_thread,
+        )
+        system_message = tracker_channel.get_partial_message(discussion.id)
+        try:
+            await system_message.delete()
+        except discord.HTTPException:
+            pass
+        await discussion.send(
+            f"For discussion and debate regarding the archival status of {thread.jump_url}",
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        ping = await discussion.send(f"<@&{self.settings.roles.archiver}> chat away!")
+        await ping.pin()
+        return discussion
 
     async def update_status(self, thread: discord.Thread, status: SubmissionStatus) -> None:
         await self._ensure_tracker_record(thread.id)
@@ -590,6 +606,36 @@ class SubmissionTrackerService:
         thread: discord.Thread,
     ) -> bool:
         return record.title != thread.name or record.submission_url != thread.jump_url
+
+    async def _tracker_discussion_missing(self, record: TrackedSubmission) -> bool:
+        if record.tracker_thread_id is None:
+            return True
+        return await self._fetch_tracker_discussion(record.tracker_thread_id) is None
+
+    async def _repair_tracker_discussion(
+        self,
+        record: TrackedSubmission,
+        thread: discord.Thread,
+    ) -> None:
+        discussion = await self._create_tracker_discussion(thread)
+        if discussion is None:
+            return
+        record.tracker_thread_id = discussion.id
+        record.tracker_thread_url = discussion.jump_url
+        tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)
+        if isinstance(tracker_channel, discord.TextChannel) and record.tracker_message_id is not None:
+            try:
+                tracker_message = await tracker_channel.fetch_message(record.tracker_message_id)
+                await tracker_message.edit(
+                    content=f"## [{thread.name}]({thread.jump_url})\n{discussion.jump_url}",
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except discord.HTTPException:
+                await self.audit.log(
+                    "Tracker message repair failed",
+                    f"Could not repair tracker discussion link for {thread.jump_url}.",
+                )
+        await self.state.upsert_submission(record)
 
     async def _delete_tracker_message(
         self,

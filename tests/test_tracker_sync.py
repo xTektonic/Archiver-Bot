@@ -235,7 +235,7 @@ class TrackerSyncTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(active_only.created, ["Active"])
         self.assertEqual(with_archived.created, ["Active", "Archived Pending"])
 
-    async def test_duplicate_tracker_messages_are_reported_and_pruned(self) -> None:
+    async def test_duplicate_tracker_messages_are_reported_without_deleting_votes(self) -> None:
         thread = FakeThread(111111111111111, "Pending Submission")
         first = FakeMessage(
             222222222222222,
@@ -252,4 +252,46 @@ class TrackerSyncTests(unittest.IsolatedAsyncioTestCase):
         result = await service.sync_all(dry_run=False)
 
         self.assertEqual(len(result.duplicates), 1)
-        self.assertTrue(duplicate.deleted)
+        self.assertFalse(duplicate.deleted)
+
+    async def test_terminal_state_only_record_is_removed(self) -> None:
+        thread = FakeThread(
+            111111111111111,
+            "Rejected Submission",
+            [self.settings.tags.rejected],
+        )
+        state = BotState()
+        state.tracked_submissions[str(thread.id)] = TrackedSubmission(
+            submission_thread_id=thread.id,
+            title=thread.name,
+            status="pending",
+            tracker_message_id=None,
+            tracker_thread_id=None,
+            created_at="2026-01-01T00:00:00+00:00",
+            updated_at="2026-01-01T00:00:00+00:00",
+            submission_url=thread.jump_url,
+        )
+        tracker = FakeTextChannel()
+        service, state_service = self.service(FakeForumChannel([thread]), tracker, state)
+
+        result = await service.sync_all(dry_run=False)
+
+        self.assertEqual(result.finalized, ["rejected: Rejected Submission"])
+        self.assertNotIn(str(thread.id), state_service.state.tracked_submissions)
+
+    async def test_missing_tracker_discussion_is_recreated(self) -> None:
+        thread = FakeThread(111111111111111, "Pending Submission")
+        message = FakeMessage(
+            222222222222222,
+            f"## [Pending Submission]({thread.jump_url})\nhttps://discord.com/channels/1/333333333333333",
+        )
+        tracker = FakeTextChannel()
+        tracker.messages.append(message)
+        service, state = self.service(FakeForumChannel([thread]), tracker)
+
+        result = await service.sync_all(dry_run=False)
+
+        self.assertEqual(result.updated, ["Recreated missing tracker discussion for Pending Submission"])
+        record = state.state.tracked_submissions[str(thread.id)]
+        self.assertIsNotNone(record.tracker_thread_id)
+        self.assertIn(str(record.tracker_thread_id), message.content)
