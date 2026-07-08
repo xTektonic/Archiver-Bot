@@ -156,6 +156,7 @@ class DMRelayView(discord.ui.View):
     async def delete_button(
         self, interaction: discord.Interaction, _button: discord.ui.Button
     ) -> None:
+        await interaction.response.defer(ephemeral=True)
         if interaction.message is not None:
             await interaction.message.delete()
 

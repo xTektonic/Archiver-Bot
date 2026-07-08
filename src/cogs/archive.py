@@ -8,7 +8,7 @@ from app import ArchiverBot
 from cogs.management import TagSelectView
 from services.audit import diff_block
 from services.checks import has_higher_role
-from services.safe_discord import respond
+from services.safe_discord import defer, respond
 
 
 class SendModal(discord.ui.Modal, title="Send Message"):
@@ -308,6 +308,7 @@ class EditTitleModal(discord.ui.Modal, title="Edit Post Title"):
         self.add_item(self.title_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        await defer(interaction)
         await self.bot.services.approvals.request(
             "edit_thread_title",
             interaction.user,
@@ -318,7 +319,7 @@ class EditTitleModal(discord.ui.Modal, title="Edit Post Title"):
                 f"From: {self.thread.name}\nTo: {self.title_input.value}"
             ),
         )
-        await interaction.response.send_message("Thread title change request sent.", ephemeral=True)
+        await interaction.followup.send("Thread title change request sent.", ephemeral=True)
 
 
 class ArchiveCog(commands.Cog):
@@ -357,6 +358,7 @@ class ArchiveCog(commands.Cog):
         if message.author != interaction.client.user:
             await respond(interaction, "Only bot messages can be deleted through this command.")
             return
+        await defer(interaction)
         await self.bot.services.approvals.request(
             "delete_message",
             interaction.user,
@@ -364,7 +366,7 @@ class ArchiveCog(commands.Cog):
             target_message_id=message.id,
             description=f"{interaction.user.mention} wants to delete {message.jump_url}",
         )
-        await respond(interaction, "Message deletion request sent.")
+        await interaction.followup.send("Message deletion request sent.", ephemeral=True)
 
     @app_commands.check(has_higher_role)
     async def publish_post(self, interaction: discord.Interaction, message: discord.Message) -> None:
@@ -397,13 +399,14 @@ class ArchiveCog(commands.Cog):
         if not self._is_archive_thread(thread):
             await respond(interaction, "That is not an archive thread.")
             return
+        await defer(interaction)
         await self.bot.services.approvals.request(
             "delete_thread",
             interaction.user,
             target_thread_id=thread.id,
             description=f"{interaction.user.mention} wants to delete {thread.jump_url}",
         )
-        await respond(interaction, "Thread deletion request sent.")
+        await interaction.followup.send("Thread deletion request sent.", ephemeral=True)
 
     @app_commands.command(name="edit_post_title", description="Request an archive post title edit")
     @app_commands.check(has_higher_role)
