@@ -145,15 +145,14 @@ class ApprovalService:
             return
         approval.status = "rejected"
         approval.approver_id = interaction.user.id
+        await self.state.update_approval(approval)
+        await self.state.remove_approval(approval.approval_id)
         try:
             await interaction.response.edit_message(
                 embed=discord.Embed(title="Rejected", description="Request rejected."),
                 view=None,
             )
         except discord.HTTPException as exc:
-            approval.status = "pending"
-            approval.approver_id = None
-            await self.state.update_approval(approval)
             await self.audit.log("Approval rejection update failed", str(exc), colour=discord.Color.orange())
             if not interaction.response.is_done():
                 await interaction.response.send_message(
@@ -161,8 +160,6 @@ class ApprovalService:
                     ephemeral=True,
                 )
             return
-        await self.state.update_approval(approval)
-        await self.state.remove_approval(approval.approval_id)
 
     async def restore_pending_views(self) -> None:
         bot_state = await self.state.get()

@@ -93,7 +93,7 @@ class StateStore:
         values = self._load_json_list(path)
         result: list[int] = []
         for value in values:
-            if not isinstance(value, int | str):
+            if isinstance(value, bool) or not isinstance(value, int | str):
                 raise RuntimeError(f"Legacy state file {path} contains a non-integer value")
             try:
                 result.append(int(value))
