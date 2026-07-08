@@ -217,14 +217,23 @@ class SubmissionTrackerService:
         async for message in tracker_channel.history(limit=None, oldest_first=True):
             if message.id in summary_ids:
                 continue
-            if message.id in known_ids:
-                live_tracker_message_ids.add(message.id)
-                continue
             if not message.content.startswith("## ["):
                 continue
             live_tracker_message_ids.add(message.id)
             record = self._record_from_tracker_message(message)
             if record is not None:
+                if message.id in known_ids:
+                    existing = next(
+                        (
+                            item
+                            for item in bot_state.tracked_submissions.values()
+                            if item.tracker_message_id == message.id
+                        ),
+                        None,
+                    )
+                    if existing is not None:
+                        record.created_at = existing.created_at
+                        record.updated_at = utc_now_iso()
                 await self.state.upsert_submission(record)
         return live_tracker_message_ids
 
