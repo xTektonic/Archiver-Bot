@@ -11,6 +11,8 @@ from services.time import utc_now_iso
 
 
 class SubmissionTrackerService:
+    VOTE_EMOJIS = ("❌", "🔴", "🟢", "✅")
+
     def __init__(
         self,
         bot: commands.Bot,
@@ -48,7 +50,7 @@ class SubmissionTrackerService:
             f"## [{thread.name}]({thread.jump_url})\n{discussion.jump_url}",
             allowed_mentions=discord.AllowedMentions.none(),
         )
-        for emoji in ("❌", "🔴", "🟢", "✅"):
+        for emoji in self.VOTE_EMOJIS:
             try:
                 await tracker_message.add_reaction(emoji)
             except discord.HTTPException:
@@ -88,6 +90,8 @@ class SubmissionTrackerService:
             existing.status = status
             existing.updated_at = now
         await self.state.upsert_submission(existing)
+        if status in {"accepted", "archived", "rejected"}:
+            await self._finalize_tracker_message(existing)
         await self.rebuild_summary()
 
     async def rebuild_summary(self) -> None:
@@ -115,8 +119,67 @@ class SubmissionTrackerService:
         await self._send_group(
             tracker_channel, "## Awaiting Testing", groups["awaiting_testing"], sent_ids
         )
-        await self._send_group(tracker_channel, "## Pending Archival", groups["accepted"], sent_ids)
+        await self._send_group(
+            tracker_channel,
+            "## Pending Archival",
+            groups["accepted"],
+            sent_ids,
+            legacy_lines=bot_state.accepted_submission_entries,
+        )
         await self.state.set_tracker_summary_messages(sent_ids)
+
+    async def _finalize_tracker_message(self, record: TrackedSubmission) -> None:
+        if record.tracker_message_id is None:
+            return
+        tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)
+        if not isinstance(tracker_channel, discord.TextChannel):
+            return
+
+        try:
+            tracker_message = await tracker_channel.fetch_message(record.tracker_message_id)
+        except discord.HTTPException:
+            return
+
+        discussion = await self._fetch_tracker_discussion(record.tracker_thread_id)
+        if discussion is not None and tracker_message.reactions:
+            lines = ["**Votes as of submission resolution:**"]
+            for reaction in tracker_message.reactions:
+                users = [
+                    user.mention
+                    async for user in reaction.users()
+                    if self.bot.user is None or user.id != self.bot.user.id
+                ]
+                lines.append(f"{reaction.emoji} - {', '.join(users)}")
+            try:
+                await discussion.send(
+                    "\n".join(lines),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except discord.HTTPException:
+                await self.audit.log(
+                    "Tracker vote capture failed",
+                    f"Could not post vote results for {record.title}.",
+                )
+
+        try:
+            await tracker_message.delete()
+        except discord.HTTPException:
+            await self.audit.log(
+                "Tracker cleanup failed",
+                f"Could not delete tracker message for {record.title}.",
+            )
+
+    async def _fetch_tracker_discussion(self, thread_id: int | None) -> discord.Thread | None:
+        if thread_id is None:
+            return None
+        channel = self.bot.get_channel(thread_id)
+        if isinstance(channel, discord.Thread):
+            return channel
+        try:
+            fetched = await self.bot.fetch_channel(thread_id)
+        except discord.HTTPException:
+            return None
+        return fetched if isinstance(fetched, discord.Thread) else None
 
     async def _send_group(
         self,
@@ -124,12 +187,19 @@ class SubmissionTrackerService:
         header: str,
         records: list[TrackedSubmission],
         sent_ids: list[int],
+        *,
+        legacy_lines: list[str] | None = None,
     ) -> None:
-        if not records:
+        legacy_lines = legacy_lines or []
+        if not records and not legacy_lines:
             return
-        content = f"{header} ({len(records)})\n"
-        for record in sorted(records, key=lambda item: item.created_at):
-            line = f"- **{record.title}**\n"
+        lines = [
+            self._summary_line(record)
+            for record in sorted(records, key=lambda item: item.created_at)
+        ]
+        lines.extend(line if line.endswith("\n") else f"{line}\n" for line in legacy_lines)
+        content = f"{header} ({len(lines)})\n"
+        for line in lines:
             if len(content) + len(line) > self.settings.discord_char_limit:
                 sent = await channel.send(content, allowed_mentions=discord.AllowedMentions.none())
                 sent_ids.append(sent.id)
@@ -138,3 +208,12 @@ class SubmissionTrackerService:
         if content.strip():
             sent = await channel.send(content, allowed_mentions=discord.AllowedMentions.none())
             sent_ids.append(sent.id)
+
+    def _summary_line(self, record: TrackedSubmission) -> str:
+        guild_id = self.bot.guilds[0].id if self.bot.guilds else "@me"
+        submission_url = f"https://discord.com/channels/{guild_id}/{record.submission_thread_id}"
+        line = f"- **[{record.title}]({submission_url})**"
+        if record.tracker_thread_id is not None:
+            discussion_url = f"https://discord.com/channels/{guild_id}/{record.tracker_thread_id}"
+            line += f" - {discussion_url}"
+        return f"{line}\n"

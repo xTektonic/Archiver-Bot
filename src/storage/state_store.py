@@ -50,6 +50,8 @@ class StateStore:
         values = self._load_json_list(path)
         result: list[int] = []
         for value in values:
+            if not isinstance(value, int | str):
+                continue
             try:
                 result.append(int(value))
             except (TypeError, ValueError):

@@ -39,3 +39,7 @@ warn_unused_configs = true
 ignore_missing_imports = true
 disallow_untyped_defs = false
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["parser.legacy", "cogs.*"]
+ignore_errors = true

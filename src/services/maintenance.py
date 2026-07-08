@@ -41,17 +41,54 @@ class MaintenanceJobService:
 
     async def open_archived(self, guild: discord.Guild, *, dry_run: bool) -> JobResult:
         result = JobResult("open_archived", dry_run)
+        seen: set[int] = set()
         for channel in guild.channels:
             if not isinstance(channel, discord.ForumChannel):
                 continue
             if channel.category_id in self.settings.categories.non_archive:
                 continue
-            async for thread in channel.archived_threads(limit=None):
-                if thread.archived and not thread.flags.pinned:
-                    result.changed += 1
-                    if not dry_run:
-                        await thread.edit(archived=False)
+            await self._open_archived_threads(channel, result, dry_run=dry_run, seen=seen)
+
+        faq_channel = self.bot.get_channel(self.settings.channels.faq)
+        if isinstance(faq_channel, discord.ForumChannel):
+            await self._open_archived_threads(faq_channel, result, dry_run=dry_run, seen=seen)
+
+        for channel_id in self.settings.channels.managed_forums:
+            managed_channel = self.bot.get_channel(channel_id)
+            if not isinstance(managed_channel, discord.ForumChannel):
+                continue
+            await self._open_archived_threads(
+                managed_channel,
+                result,
+                dry_run=dry_run,
+                seen=seen,
+                required_tags=self.settings.tags.pending,
+            )
         return result
+
+    async def _open_archived_threads(
+        self,
+        channel: discord.ForumChannel,
+        result: JobResult,
+        *,
+        dry_run: bool,
+        seen: set[int],
+        required_tags: set[int] | None = None,
+    ) -> None:
+        async for thread in channel.archived_threads(limit=None):
+            if thread.id in seen:
+                continue
+            seen.add(thread.id)
+            if not thread.archived or thread.flags.pinned:
+                continue
+            if required_tags is not None and not any(
+                tag.id in required_tags for tag in thread.applied_tags
+            ):
+                continue
+            result.changed += 1
+            result.messages.append(f"{thread.name} in {channel.name}")
+            if not dry_run:
+                await thread.edit(archived=False)
 
     async def mark_inactive_help(self, *, dry_run: bool) -> JobResult:
         result = JobResult("mark_inactive_help", dry_run)
@@ -66,6 +103,8 @@ class MaintenanceJobService:
             if not any(tag.id == self.settings.tags.unsolved for tag in thread.applied_tags):
                 continue
             last_activity = snowflake_time(thread.last_message_id) if thread.last_message_id else thread.created_at
+            if last_activity is None:
+                continue
             if now - last_activity > timedelta(weeks=1):
                 result.changed += 1
                 if not dry_run:

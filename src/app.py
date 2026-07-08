@@ -22,6 +22,7 @@ from storage.state_store import StateStore
 class ArchiverBot(commands.Bot):
     settings: BotSettings
     services: ServiceContainer
+    _approvals_restored: bool
 
 
 def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
@@ -37,14 +38,18 @@ def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
 
     state_service = StateService(StateStore(settings.data_dir))
     audit = AuditLogService(bot, settings)
-    services = ServiceContainer(audit=audit, state=state_service)
-    services.approvals = ApprovalService(bot, settings, state_service, audit)
-    services.tracker = SubmissionTrackerService(bot, settings, state_service, audit)
-    services.archive = ArchivePublishingService(bot, settings, state_service, audit)
-    services.moderation = ModerationService(bot, settings, state_service, audit)
-    services.parser = ParserService(bot, settings)
-    services.maintenance = MaintenanceJobService(bot, settings)
+    services = ServiceContainer(
+        audit=audit,
+        state=state_service,
+        approvals=ApprovalService(bot, settings, state_service, audit),
+        tracker=SubmissionTrackerService(bot, settings, state_service, audit),
+        archive=ArchivePublishingService(bot, settings, state_service, audit),
+        moderation=ModerationService(bot, settings, state_service, audit),
+        parser=ParserService(bot, settings),
+        maintenance=MaintenanceJobService(bot, settings),
+    )
     bot.services = services
+    bot._approvals_restored = False
 
     async def setup_hook() -> None:
         await state_service.initialize()
@@ -54,9 +59,12 @@ def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
         await bot.load_extension("cogs.archive")
         await bot.load_extension("cogs.management")
         await bot.load_extension("cogs.parser")
-        if isinstance(services.approvals, ApprovalService):
-            await services.approvals.restore_pending_views()
         await bot.tree.sync()
+
+    async def on_ready() -> None:
+        if not bot._approvals_restored and isinstance(services.approvals, ApprovalService):
+            bot._approvals_restored = True
+            await services.approvals.restore_pending_views()
 
     async def on_app_command_error(
         interaction: discord.Interaction, error: app_commands.AppCommandError
@@ -74,8 +82,9 @@ def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
         await respond(interaction, f"An error occurred: {error}", ephemeral=True)
         await audit.log("Command error", f"{interaction.command}: {error}", colour=discord.Color.red())
 
-    bot.setup_hook = setup_hook
-    bot.tree.on_error = on_app_command_error
+    bot.setup_hook = setup_hook  # type: ignore[method-assign]
+    bot.on_ready = on_ready  # type: ignore[attr-defined]
+    bot.tree.on_error = on_app_command_error  # type: ignore[method-assign]
     return bot
 
 

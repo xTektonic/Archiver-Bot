@@ -49,6 +49,8 @@ class ApprovalService:
             proposed_title=proposed_title,
         )
         channel = self.bot.get_channel(self.settings.channels.archiver_chat)
+        if channel is None:
+            channel = await self.bot.fetch_channel(self.settings.channels.archiver_chat)
         if isinstance(channel, discord.abc.Messageable):
             view = ApprovalView(self, approval.approval_id)
             message = await channel.send(
@@ -58,6 +60,8 @@ class ApprovalService:
             )
             approval.approval_message_id = message.id
             approval.approval_channel_id = getattr(message.channel, "id", None)
+        else:
+            raise RuntimeError("Approval channel is not messageable.")
         await self.state.put_approval(approval)
         return approval
 
@@ -89,6 +93,8 @@ class ApprovalService:
             )
             approval.result_log_url = log.jump_url if log else None
             await self.state.update_approval(approval)
+            if interaction.message is None:
+                raise RuntimeError("Approval interaction is missing its message.")
             await interaction.followup.edit_message(
                 message_id=interaction.message.id,
                 embed=discord.Embed(title="Approved", description="Request approved."),
@@ -126,7 +132,14 @@ class ApprovalService:
                 await self.state.update_approval(approval)
                 continue
             channel = self.bot.get_channel(approval.approval_channel_id)
-            if not isinstance(channel, discord.abc.Messageable) or approval.approval_message_id is None:
+            if channel is None:
+                try:
+                    channel = await self.bot.fetch_channel(approval.approval_channel_id)
+                except discord.HTTPException:
+                    continue
+            if not isinstance(channel, discord.TextChannel | discord.Thread):
+                continue
+            if approval.approval_message_id is None:
                 continue
             try:
                 message = await channel.fetch_message(approval.approval_message_id)
@@ -156,6 +169,8 @@ class ApprovalService:
         if approval.target_channel_id is None or approval.target_message_id is None:
             raise ValueError("delete_message approval is missing target IDs")
         channel = await self.bot.fetch_channel(approval.target_channel_id)
+        if not isinstance(channel, discord.TextChannel | discord.Thread):
+            raise ValueError("delete_message approval target is not a message channel")
         message = await channel.fetch_message(approval.target_message_id)
         await message.delete()
 
@@ -163,12 +178,16 @@ class ApprovalService:
         if approval.target_thread_id is None:
             raise ValueError("delete_thread approval is missing target thread ID")
         thread = await self.bot.fetch_channel(approval.target_thread_id)
+        if not isinstance(thread, discord.Thread):
+            raise ValueError("delete_thread approval target is not a thread")
         await thread.delete()
 
     async def _edit_thread_title(self, approval: PendingApproval) -> None:
         if approval.target_thread_id is None or approval.proposed_title is None:
             raise ValueError("edit_thread_title approval is missing target data")
         thread = await self.bot.fetch_channel(approval.target_thread_id)
+        if not isinstance(thread, discord.Thread):
+            raise ValueError("edit_thread_title approval target is not a thread")
         await thread.edit(name=approval.proposed_title, archived=False)
 
 

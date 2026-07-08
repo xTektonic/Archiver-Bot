@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import discord
 from discord.ext import commands
@@ -98,8 +99,8 @@ class ParserService:
         except Exception as exc:
             return [ParseDiagnostic(thread.id, thread.name, f"{type(exc).__name__}: {exc}")]
 
-    def parse_text(self, text: str) -> dict:
-        return message_parse(text.split("\n"))
+    def parse_text(self, text: str) -> dict[str, Any]:
+        return cast(dict[str, Any], message_parse(text.split("\n")))
 
     async def build_username_lookup_from_messages(self, messages: list[str]) -> dict[int, str]:
         import re

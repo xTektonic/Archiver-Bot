@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import discord
 
 
@@ -11,8 +13,13 @@ async def respond(
     view: discord.ui.View | None = None,
     ephemeral: bool = True,
 ) -> None:
-    kwargs = {"content": content, "embed": embed, "view": view, "ephemeral": ephemeral}
-    kwargs = {key: value for key, value in kwargs.items() if value is not None}
+    kwargs: dict[str, Any] = {"ephemeral": ephemeral}
+    if content is not None:
+        kwargs["content"] = content
+    if embed is not None:
+        kwargs["embed"] = embed
+    if view is not None:
+        kwargs["view"] = view
     if interaction.response.is_done():
         await interaction.followup.send(**kwargs)
     else:
