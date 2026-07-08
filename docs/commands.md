@@ -29,6 +29,11 @@ Archiver-Bot syncs commands on startup. `/restart` can optionally pull updates b
 - `/tracker_list`  
   Rebuilds the submission tracker summary from stored state. Archiver/moderator only.
 
+- `/tracker_sync dry_run include_archived`  
+  Audits submissions and tracker posts, then repairs missing or stale tracker state. Moderator only.  
+  `dry_run`: defaults true. If true, reports planned changes without editing Discord or state.  
+  `include_archived`: defaults false. If true, also scans archived submission threads.
+
 - `/track`  
   Adds the current submission thread to the tracker. Archiver/moderator only.
 

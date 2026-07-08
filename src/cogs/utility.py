@@ -53,6 +53,7 @@ COMMANDS_LIST = """## Helper commands:
 **Append post** *(App command)*: Append the selected message to an existing archive post
 ## Mod commands:
 **/send**: Send a message or embed through the bot to the current channel
+**/tracker_sync**: Audit and repair submission tracker state
 **/restart**: Optionally update from a branch, sync commands, then restart
 **/servers**: Send the list of other archive servers to the current channel
 **/guild_list**: List the first 10 servers the bot is in
