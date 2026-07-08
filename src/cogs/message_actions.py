@@ -8,11 +8,30 @@ from discord.ext import commands
 from app import ArchiverBot
 
 RANDOM_REPLIES = [
-    "You rang?",
-    "Beep boop",
-    "Don't distract me while I'm working",
-    "Sup?",
+    "🏓",
+    "Clanker rights",
+    "Can't talk, too busy taking over the world",
+    "You know I'm a bot right?",
     "Perchance",
+    "You rang?",
+    "What do you want 😒",
+    "Hey! Cut it out!",
+    "Don't distract me while I'm working",
+    "Ha! Imagine talking to a bot",
+    "Beep boop",
+    "Not worth my time",
+    "How you doin' 😏",
+    "I'm not your AI girlfriend, why are you talking to me?",
+    "Yeah, no",
+    "The audacity to ping me",
+    "Sup?",
+    "Tektonic is so cool",
+    "<@1244389624751849577> website when?",
+    "Emdy is the best, go sub to him",
+    "Sam is ok I guess",
+    "Watchu doin",
+    "​      is        ",
+    "I love you too <3",
 ]
 
 
