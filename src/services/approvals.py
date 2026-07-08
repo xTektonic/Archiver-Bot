@@ -54,12 +54,16 @@ class ApprovalService:
             channel = await self.bot.fetch_channel(self.settings.channels.archiver_chat)
         if isinstance(channel, discord.abc.Messageable):
             await self.state.put_approval(approval)
-            view = ApprovalView(self, approval.approval_id)
-            message = await channel.send(
-                embed=discord.Embed(title="Approval request", description=description),
-                view=view,
-                allowed_mentions=discord.AllowedMentions.none(),
-            )
+            try:
+                view = ApprovalView(self, approval.approval_id)
+                message = await channel.send(
+                    embed=discord.Embed(title="Approval request", description=description),
+                    view=view,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+            except Exception:
+                await self.state.remove_approval(approval.approval_id)
+                raise
             approval.approval_message_id = message.id
             approval.approval_channel_id = getattr(message.channel, "id", None)
         else:
@@ -95,16 +99,19 @@ class ApprovalService:
 
         approval.status = "approved"
         approval.approver_id = interaction.user.id
-        log = await self.audit.log(
-            "Approval completed",
-            (
-                f"Type: {approval.type}\n"
-                f"Requester: <@{approval.requester_id}>\n"
-                f"Approver: {interaction.user.mention}"
-                f"{result_details}"
-            ),
-            colour=discord.Color.green(),
-        )
+        try:
+            log = await self.audit.log(
+                "Approval completed",
+                (
+                    f"Type: {approval.type}\n"
+                    f"Requester: <@{approval.requester_id}>\n"
+                    f"Approver: {interaction.user.mention}"
+                    f"{result_details}"
+                ),
+                colour=discord.Color.green(),
+            )
+        except discord.HTTPException:
+            log = None
         approval.result_log_url = log.jump_url if log else None
         await self.state.remove_approval(approval.approval_id)
         try:
