@@ -87,9 +87,8 @@ class ApprovalService:
             elif approval.type == "edit_thread_title":
                 result_details = await self._edit_thread_title(approval)
         except Exception as exc:
-            approval.status = "failed"
             await self.audit.log("Approval failed", str(exc), colour=discord.Color.red())
-            await self.state.remove_approval(approval.approval_id)
+            await self.state.update_approval(approval)
             await interaction.followup.send(f"Approval failed: {exc}", ephemeral=True)
             return
 
