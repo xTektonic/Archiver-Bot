@@ -100,23 +100,46 @@ class TrackerSyncResult:
             ("Missing/Inaccessible", self.missing),
             ("Failures", self.failures),
         ]
+        remaining_detail_chars = 4500
         for name, values in counts:
-            if values:
+            if not values:
+                continue
+            if remaining_detail_chars <= 0:
                 embed.add_field(
                     name=f"{name} ({len(values)})",
-                    value=self._embed_items(values),
+                    value="Omitted because the report is too large.",
                     inline=False,
                 )
+                continue
+            value = self._embed_items(values, limit=remaining_detail_chars)
+            remaining_detail_chars -= len(value)
+            embed.add_field(
+                name=f"{name} ({len(values)})",
+                value=value,
+                inline=False,
+            )
         if not self.has_changes():
             embed.add_field(name="Status", value="No tracker changes needed.", inline=False)
         return embed
 
-    def _embed_items(self, values: list[str]) -> str:
-        lines = [f"- {value}" for value in values[:8]]
-        if len(values) > 8:
-            lines.append(f"- ...and {len(values) - 8} more")
-        text = "\n".join(lines)
-        return text if len(text) <= 1024 else f"{text[:1020]}..."
+    def _embed_items(self, values: list[str], *, limit: int) -> str:
+        field_limit = max(1, min(1024, limit))
+        lines: list[str] = []
+        omitted = 0
+        for index, value in enumerate(values):
+            line = f"- {value}"
+            candidate = "\n".join([*lines, line])
+            if len(candidate) > field_limit:
+                omitted = len(values) - index
+                break
+            lines.append(line)
+        if omitted:
+            suffix = f"- ...and {omitted} more"
+            candidate = "\n".join([*lines, suffix])
+            if len(candidate) <= field_limit:
+                lines.append(suffix)
+        text = "\n".join(lines) or "Report details omitted."
+        return text if len(text) <= field_limit else f"{text[: field_limit - 3]}..."
 
 
 class SubmissionTrackerService:
