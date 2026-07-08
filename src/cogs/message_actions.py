@@ -32,11 +32,15 @@ RANDOM_REPLIES = [
     "Watchu doin",
     "​      is        ",
     "I love you too <3",
-    "I'm literally in the walls",
+    "I'm literally in your walls",
     "Have you tried turning it off and on again?",
     "I was promised snacks for this",
     "I'm off the clock",
     "Bold of you to assume I care",
+    "I heard camou talking about banning you",
+    "Beware the froggo",
+    "Are you the real bigbooty?",
+    "Chat should we ban this guy?"
 ]
 
 
