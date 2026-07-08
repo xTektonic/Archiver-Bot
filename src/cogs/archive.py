@@ -207,26 +207,42 @@ class PublishModal(discord.ui.Modal, title="Publish Post"):
             )
             return
         cleanup_note = ""
-        try:
-            if (
-                isinstance(interaction.channel, discord.Thread)
-                and interaction.channel.parent_id == self.bot.settings.channels.submissions
-            ):
+        cleanup_errors: list[str] = []
+        if (
+            isinstance(interaction.channel, discord.Thread)
+            and interaction.channel.parent_id == self.bot.settings.channels.submissions
+        ):
+            try:
                 archived_tag = interaction.channel.parent.get_tag(self.bot.settings.tags.archived)
                 if archived_tag is not None:
                     await interaction.channel.edit(applied_tags=[archived_tag])
+            except Exception as exc:
+                cleanup_errors.append(f"tag update failed: {exc}")
+            link: discord.Message | None = None
+            try:
                 link = await interaction.channel.send(
                     f"Submission archived as {thread.jump_url}",
                     allowed_mentions=discord.AllowedMentions.none(),
                 )
-                await link.pin()
-        except Exception as exc:
-            cleanup_note = f"\nSubmission cleanup failed: {exc}"
-            await self.bot.services.audit.log(
-                "Archive submission cleanup failed",
-                f"Archive: {thread.jump_url}\nError: {exc}\nBy: {interaction.user.mention}",
-                colour=discord.Color.orange(),
-            )
+            except Exception as exc:
+                cleanup_errors.append(f"archive link failed: {exc}")
+            if link is not None:
+                try:
+                    await link.pin()
+                except Exception as exc:
+                    cleanup_errors.append(f"archive link pin failed: {exc}")
+        if cleanup_errors:
+            cleanup_note = "\nSubmission cleanup failed: " + "; ".join(cleanup_errors)
+            try:
+                await self.bot.services.audit.log(
+                    "Archive submission cleanup failed",
+                    f"Archive: {thread.jump_url}\n"
+                    f"Errors: {'; '.join(cleanup_errors)}\n"
+                    f"By: {interaction.user.mention}",
+                    colour=discord.Color.orange(),
+                )
+            except discord.HTTPException:
+                pass
         await interaction.followup.send(
             f"Post published: {thread.jump_url}{cleanup_note}\nSet post tags:",
             view=TagSelectView(thread),

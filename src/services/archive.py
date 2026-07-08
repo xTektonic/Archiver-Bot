@@ -41,19 +41,32 @@ class ArchivePublishingService:
             allowed_mentions=no_mentions(),
         )
         thread = created.thread
-        await self.state.set_last_archive_thread(thread.id)
-        await self.audit.log(
+        try:
+            await self.state.set_last_archive_thread(thread.id)
+        except Exception as exc:
+            await self._try_audit_log(
+                "Archive state update failed",
+                f"Post: {thread.jump_url}\nError: {exc}",
+            )
+        await self._try_audit_log(
             "Post published",
             f"Post: {thread.jump_url}\nChannel: {archive_channel.jump_url}\nBy: {author.mention}",
+            is_warning=False,
         )
         if announce:
             updates = self.bot.get_channel(self.settings.channels.archive_updates)
             if isinstance(updates, discord.abc.Messageable):
-                await updates.send(
-                    f"Archived {thread.jump_url} in {archive_channel.jump_url}\n\n"
-                    f"Source: {getattr(source_channel, 'jump_url', '')}",
-                    allowed_mentions=no_mentions(),
-                )
+                try:
+                    await updates.send(
+                        f"Archived {thread.jump_url} in {archive_channel.jump_url}\n\n"
+                        f"Source: {getattr(source_channel, 'jump_url', '')}",
+                        allowed_mentions=no_mentions(),
+                    )
+                except discord.HTTPException as exc:
+                    await self._try_audit_log(
+                        "Archive announcement failed",
+                        f"Post: {thread.jump_url}\nError: {exc}",
+                    )
         return thread
 
     async def append(
@@ -66,10 +79,17 @@ class ArchivePublishingService:
             raise ValueError("The selected thread is not in an archive forum.")
         ensure_content_safe(content, limit=self.settings.discord_char_limit)
         message = await archive_thread.send(content=content, allowed_mentions=no_mentions())
-        await self.state.set_last_archive_thread(archive_thread.id)
-        await self.audit.log(
+        try:
+            await self.state.set_last_archive_thread(archive_thread.id)
+        except Exception as exc:
+            await self._try_audit_log(
+                "Archive append state update failed",
+                f"Message: {message.jump_url}\nError: {exc}",
+            )
+        await self._try_audit_log(
             "Post appended",
             f"In: {archive_thread.jump_url}\nBy: {author.mention}\n\n{content[:900]}",
+            is_warning=False,
         )
         return message
 
@@ -80,3 +100,20 @@ class ArchivePublishingService:
         if role is None:
             raise ValueError(f"Role {role_id} was not found.")
         await member.add_roles(role)
+
+    async def _try_audit_log(
+        self,
+        title: str,
+        description: str,
+        *,
+        colour: discord.Color | None = None,
+        is_warning: bool = True,
+    ) -> None:
+        try:
+            await self.audit.log(
+                title,
+                description,
+                colour=colour if not is_warning else discord.Color.orange(),
+            )
+        except discord.HTTPException:
+            return
