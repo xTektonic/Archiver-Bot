@@ -34,6 +34,12 @@ class StateStore:
             self._remove_legacy_files()
             return
         state = await self.load()
+        if self._legacy_files_exist():
+            await self._backup_existing("pre-legacy-merge")
+            legacy_state = self._load_legacy_state()
+            self._merge_legacy_state(state, legacy_state)
+            await self.save(state)
+            self._remove_legacy_files()
         if state.version != 1:
             await self._backup_existing("pre-migration")
             await self.save(state)
@@ -48,12 +54,39 @@ class StateStore:
         state.accepted_submission_entries = self._load_str_list(legacy_accepted)
         return state
 
+    def _legacy_files_exist(self) -> bool:
+        return any(path.exists() for path in self._legacy_paths())
+
     def _remove_legacy_files(self) -> None:
-        for path in (Path("blacklist.json"), Path("messages.json"), Path("accepted.json")):
+        for path in self._legacy_paths():
             try:
                 path.unlink(missing_ok=True)
             except OSError:
                 continue
+
+    def _legacy_paths(self) -> tuple[Path, Path, Path]:
+        return (Path("blacklist.json"), Path("messages.json"), Path("accepted.json"))
+
+    def _merge_legacy_state(self, state: BotState, legacy_state: BotState) -> None:
+        state.blocked_dm_users = sorted(
+            set(state.blocked_dm_users) | set(legacy_state.blocked_dm_users)
+        )
+        state.tracker_summary_message_ids = list(
+            dict.fromkeys(
+                [
+                    *state.tracker_summary_message_ids,
+                    *legacy_state.tracker_summary_message_ids,
+                ]
+            )
+        )
+        state.accepted_submission_entries = list(
+            dict.fromkeys(
+                [
+                    *state.accepted_submission_entries,
+                    *legacy_state.accepted_submission_entries,
+                ]
+            )
+        )
 
     def _load_int_list(self, path: Path) -> list[int]:
         values = self._load_json_list(path)

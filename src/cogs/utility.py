@@ -102,17 +102,18 @@ class UtilityCog(commands.Cog):
     @app_commands.command(name="restart", description="Restart the bot process")
     @app_commands.describe(
         update="Pull updates before restarting",
-        branch="Branch to pull from when updating",
+        branch="Branch to pull from when updating; defaults to the current branch",
     )
     @app_commands.check(has_moderator_role)
     async def restart(
         self,
         interaction: discord.Interaction,
         update: bool = True,
-        branch: str = "main",
+        branch: str = "",
     ) -> None:
         await defer(interaction)
         if update:
+            branch = branch.strip() or await self._current_git_branch()
             await interaction.followup.send(f"Updating from `{branch}`...", ephemeral=True)
             process = await asyncio.create_subprocess_exec(
                 "git",
@@ -139,6 +140,18 @@ class UtilityCog(commands.Cog):
         else:
             await interaction.followup.send("Restarting...", ephemeral=True)
         os.execv(sys.executable, [sys.executable, *sys.argv])
+
+    async def _current_git_branch(self) -> str:
+        process = await asyncio.create_subprocess_exec(
+            "git",
+            "branch",
+            "--show-current",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+        )
+        stdout, _stderr = await process.communicate()
+        branch = stdout.decode(errors="replace").strip()
+        return branch or "main"
 
     @app_commands.command(name="fetch_links", description="Return attachment links from a message")
     @app_commands.check(has_higher_role)
