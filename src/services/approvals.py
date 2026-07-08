@@ -78,41 +78,47 @@ class ApprovalService:
             return
 
         await interaction.response.defer(ephemeral=True)
+        result_details = ""
         try:
-            result_details = ""
             if approval.type == "delete_message":
                 result_details = await self._delete_message(approval)
             elif approval.type == "delete_thread":
                 result_details = await self._delete_thread(approval)
             elif approval.type == "edit_thread_title":
                 result_details = await self._edit_thread_title(approval)
-            approval.status = "approved"
-            approval.approver_id = interaction.user.id
-            log = await self.audit.log(
-                "Approval completed",
-                (
-                    f"Type: {approval.type}\n"
-                    f"Requester: <@{approval.requester_id}>\n"
-                    f"Approver: {interaction.user.mention}"
-                    f"{result_details}"
-                ),
-                colour=discord.Color.green(),
-            )
-            approval.result_log_url = log.jump_url if log else None
-            await self.state.update_approval(approval)
-            if interaction.message is None:
-                raise RuntimeError("Approval interaction is missing its message.")
-            await interaction.followup.edit_message(
-                message_id=interaction.message.id,
-                embed=discord.Embed(title="Approved", description="Request approved."),
-                view=None,
-            )
-            await interaction.followup.send("Approved.", ephemeral=True)
         except Exception as exc:
             approval.status = "failed"
             await self.state.update_approval(approval)
             await self.audit.log("Approval failed", str(exc), colour=discord.Color.red())
             await interaction.followup.send(f"Approval failed: {exc}", ephemeral=True)
+            return
+
+        approval.status = "approved"
+        approval.approver_id = interaction.user.id
+        log = await self.audit.log(
+            "Approval completed",
+            (
+                f"Type: {approval.type}\n"
+                f"Requester: <@{approval.requester_id}>\n"
+                f"Approver: {interaction.user.mention}"
+                f"{result_details}"
+            ),
+            colour=discord.Color.green(),
+        )
+        approval.result_log_url = log.jump_url if log else None
+        await self.state.update_approval(approval)
+        try:
+            if interaction.message is None:
+                await interaction.followup.send("Approved.", ephemeral=True)
+                return
+            await interaction.followup.edit_message(
+                message_id=interaction.message.id,
+                embed=discord.Embed(title="Approved", description="Request approved."),
+                view=None,
+            )
+        except discord.HTTPException as exc:
+            await self.audit.log("Approval message update failed", str(exc), colour=discord.Color.orange())
+        await interaction.followup.send("Approved.", ephemeral=True)
 
     async def reject(self, interaction: discord.Interaction, approval_id: str) -> None:
         approval = await self._get_pending(interaction, approval_id)

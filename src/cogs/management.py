@@ -54,7 +54,8 @@ class ManagementCog(commands.Cog):
     @tasks.loop(hours=12)
     async def periodic_maintenance(self) -> None:
         await self.bot.wait_until_ready()
-        guild = self.bot.guilds[0] if self.bot.guilds else None
+        logs = self.bot.get_channel(self.bot.settings.channels.log)
+        guild = logs.guild if isinstance(logs, discord.TextChannel | discord.Thread) else None
         if guild is None:
             return
         await self.bot.services.audit.log("Maintenance", "Running periodic maintenance.")

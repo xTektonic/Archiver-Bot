@@ -77,6 +77,7 @@ class SubmissionTrackerService:
         return record
 
     async def update_status(self, thread: discord.Thread, status: SubmissionStatus) -> None:
+        await self._ensure_tracker_record(thread.id)
         bot_state = await self.state.get()
         existing = bot_state.tracked_submissions.get(str(thread.id))
         now = utc_now_iso()
@@ -106,6 +107,7 @@ class SubmissionTrackerService:
         await self.rebuild_summary()
 
     async def reconcile_submission(self, thread: discord.Thread) -> None:
+        await self._ensure_tracker_record(thread.id)
         tag_ids = {tag.id for tag in thread.applied_tags}
         if self.settings.tags.archived in tag_ids:
             await self.update_status(thread, "archived")
@@ -236,6 +238,20 @@ class SubmissionTrackerService:
                         record.updated_at = utc_now_iso()
                 await self.state.upsert_submission(record)
         return live_tracker_message_ids
+
+    async def _ensure_tracker_record(self, submission_thread_id: int) -> None:
+        if str(submission_thread_id) in (await self.state.get()).tracked_submissions:
+            return
+        tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)
+        if not isinstance(tracker_channel, discord.TextChannel):
+            return
+        async for message in tracker_channel.history(limit=None, oldest_first=True):
+            if not message.content.startswith("## ["):
+                continue
+            record = self._record_from_tracker_message(message)
+            if record is not None and record.submission_thread_id == submission_thread_id:
+                await self.state.upsert_submission(record)
+                return
 
     def _record_from_tracker_message(self, message: discord.Message) -> TrackedSubmission | None:
         title_match = re.match(r"## \[(?P<title>[^\]]+)\]\((?P<url>[^)]+)\)", message.content)
