@@ -66,3 +66,9 @@ class StateService:
 
     async def update_approval(self, approval: PendingApproval) -> None:
         await self.put_approval(approval)
+
+    async def remove_approval(self, approval_id: str) -> None:
+        def mutate(state: BotState) -> None:
+            state.pending_approvals.pop(approval_id, None)
+
+        await self.store.update(mutate)

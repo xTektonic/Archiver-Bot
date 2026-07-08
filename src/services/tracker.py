@@ -104,6 +104,7 @@ class SubmissionTrackerService:
         await self.state.upsert_submission(existing)
         if status in {"accepted", "archived", "rejected"}:
             await self._finalize_tracker_message(existing)
+            await self.state.remove_submission(thread.id)
         await self.rebuild_summary()
 
     async def reconcile_submission(self, thread: discord.Thread) -> None:
@@ -318,6 +319,9 @@ class SubmissionTrackerService:
     ) -> None:
         bot_state = await self.state.get()
         for record in list(bot_state.tracked_submissions.values()):
+            if record.status in {"archived", "rejected"}:
+                await self.state.remove_submission(record.submission_thread_id)
+                continue
             if record.status == "accepted":
                 if record.submission_thread_id not in accepted_submission_ids:
                     await self.state.remove_submission(record.submission_thread_id)

@@ -88,8 +88,8 @@ class ApprovalService:
                 result_details = await self._edit_thread_title(approval)
         except Exception as exc:
             approval.status = "failed"
-            await self.state.update_approval(approval)
             await self.audit.log("Approval failed", str(exc), colour=discord.Color.red())
+            await self.state.remove_approval(approval.approval_id)
             await interaction.followup.send(f"Approval failed: {exc}", ephemeral=True)
             return
 
@@ -106,7 +106,7 @@ class ApprovalService:
             colour=discord.Color.green(),
         )
         approval.result_log_url = log.jump_url if log else None
-        await self.state.update_approval(approval)
+        await self.state.remove_approval(approval.approval_id)
         try:
             if interaction.message is None:
                 await interaction.followup.send("Approved.", ephemeral=True)
@@ -129,7 +129,7 @@ class ApprovalService:
             return
         approval.status = "rejected"
         approval.approver_id = interaction.user.id
-        await self.state.update_approval(approval)
+        await self.state.remove_approval(approval.approval_id)
         await interaction.response.edit_message(
             embed=discord.Embed(title="Rejected", description="Request rejected."),
             view=None,
@@ -142,7 +142,7 @@ class ApprovalService:
                 continue
             if is_expired(approval.expires_at):
                 approval.status = "expired"
-                await self.state.update_approval(approval)
+                await self.state.remove_approval(approval.approval_id)
                 await self._mark_approval_message(
                     approval,
                     discord.Embed(title="Timed Out", description="Request expired."),
@@ -173,7 +173,7 @@ class ApprovalService:
             return None
         if is_expired(approval.expires_at):
             approval.status = "expired"
-            await self.state.update_approval(approval)
+            await self.state.remove_approval(approval.approval_id)
             await self._mark_approval_message(
                 approval,
                 discord.Embed(title="Timed Out", description="Request expired."),
@@ -187,7 +187,7 @@ class ApprovalService:
         if approval is None or approval.status != "pending":
             return
         approval.status = "expired"
-        await self.state.update_approval(approval)
+        await self.state.remove_approval(approval.approval_id)
         await self._mark_approval_message(
             approval,
             discord.Embed(title="Timed Out", description="Request expired."),
