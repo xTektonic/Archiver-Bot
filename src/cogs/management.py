@@ -86,12 +86,12 @@ class ManagementCog(commands.Cog):
         ):
             await respond(interaction, "This command can only be used in a forum post.")
             return
-        has_higher = any(role.id in self.bot.settings.roles.higher for role in interaction.user.roles)
+        has_staff = any(role.id in self.bot.settings.roles.staff for role in interaction.user.roles)
         owns_help_post = (
             interaction.channel.parent_id == self.bot.settings.channels.help_forum
             and interaction.user.id == interaction.channel.owner_id
         )
-        if not has_higher and not owns_help_post:
+        if not has_staff and not owns_help_post:
             await respond(interaction, "You do not have permission to set tags here.")
             return
         if not given_tag:
