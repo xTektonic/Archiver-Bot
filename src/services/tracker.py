@@ -13,8 +13,8 @@ from services.time import utc_now_iso
 
 
 class SubmissionTrackerService:
-    VOTE_EMOJIS = ("❌", "🔴", "🟢", "✅")
-    TESTING_EMOJI = "🧪"
+    VOTE_EMOJIS = ("\u274c", "\U0001f534", "\U0001f7e2", "\u2705")
+    TESTING_EMOJI = "\U0001f9ea"
 
     def __init__(
         self,
@@ -105,6 +105,28 @@ class SubmissionTrackerService:
             await self._finalize_tracker_message(existing)
         await self.rebuild_summary()
 
+    async def reconcile_submission(self, thread: discord.Thread) -> None:
+        tag_ids = {tag.id for tag in thread.applied_tags}
+        if self.settings.tags.archived in tag_ids:
+            await self.update_status(thread, "archived")
+            return
+        if self.settings.tags.rejected in tag_ids:
+            await self.update_status(thread, "rejected")
+            return
+        if self.settings.tags.accepted in tag_ids:
+            await self.update_status(thread, "accepted")
+            return
+
+        existing = (await self.state.get()).tracked_submissions.get(str(thread.id))
+        if existing is None:
+            await self.rebuild_summary()
+            return
+        if existing.tracker_message_id is None:
+            await self.state.remove_submission(thread.id)
+            await self.rebuild_summary()
+            return
+        await self.update_status(thread, "pending")
+
     async def _sync_tracker_title(
         self, record: TrackedSubmission, thread: discord.Thread
     ) -> None:
@@ -147,8 +169,9 @@ class SubmissionTrackerService:
         tracker_channel = self.bot.get_channel(self.settings.channels.submissions_tracker)
         if not isinstance(tracker_channel, discord.TextChannel):
             return
-        await self._import_tracker_messages(tracker_channel)
-        await self._refresh_accepted_submissions()
+        live_tracker_message_ids = await self._import_tracker_messages(tracker_channel)
+        accepted_submission_ids = await self._refresh_accepted_submissions()
+        await self._prune_stale_records(live_tracker_message_ids, accepted_submission_ids)
         bot_state = await self.state.get()
         for message_id in bot_state.tracker_summary_message_ids:
             try:
@@ -182,7 +205,7 @@ class SubmissionTrackerService:
         )
         await self.state.set_tracker_summary_messages(sent_ids)
 
-    async def _import_tracker_messages(self, tracker_channel: discord.TextChannel) -> None:
+    async def _import_tracker_messages(self, tracker_channel: discord.TextChannel) -> set[int]:
         bot_state = await self.state.get()
         summary_ids = set(bot_state.tracker_summary_message_ids)
         known_ids = {
@@ -190,14 +213,20 @@ class SubmissionTrackerService:
             for record in bot_state.tracked_submissions.values()
             if record.tracker_message_id is not None
         }
+        live_tracker_message_ids: set[int] = set()
         async for message in tracker_channel.history(limit=None, oldest_first=True):
-            if message.id in summary_ids or message.id in known_ids:
+            if message.id in summary_ids:
+                continue
+            if message.id in known_ids:
+                live_tracker_message_ids.add(message.id)
                 continue
             if not message.content.startswith("## ["):
                 continue
+            live_tracker_message_ids.add(message.id)
             record = self._record_from_tracker_message(message)
             if record is not None:
                 await self.state.upsert_submission(record)
+        return live_tracker_message_ids
 
     def _record_from_tracker_message(self, message: discord.Message) -> TrackedSubmission | None:
         title_match = re.match(r"## \[(?P<title>[^\]]+)\]\((?P<url>[^)]+)\)", message.content)
@@ -234,11 +263,12 @@ class SubmissionTrackerService:
             return None
         return int(matches[-1])
 
-    async def _refresh_accepted_submissions(self) -> None:
+    async def _refresh_accepted_submissions(self) -> set[int]:
         submissions = self.bot.get_channel(self.settings.channels.submissions)
         if not isinstance(submissions, discord.ForumChannel):
-            return
+            return set()
         entries: list[str] = []
+        accepted_ids: set[int] = set()
         for thread in submissions.threads:
             tag_ids = {tag.id for tag in thread.applied_tags}
             has_other_resolved_tag = any(
@@ -251,7 +281,27 @@ class SubmissionTrackerService:
                 and not has_other_resolved_tag
             ):
                 entries.append(f"- **[{thread.name}]({thread.jump_url})**")
+                accepted_ids.add(thread.id)
         await self.state.set_accepted_submission_entries(entries)
+        return accepted_ids
+
+    async def _prune_stale_records(
+        self,
+        live_tracker_message_ids: set[int],
+        accepted_submission_ids: set[int],
+    ) -> None:
+        bot_state = await self.state.get()
+        for record in list(bot_state.tracked_submissions.values()):
+            if record.status == "accepted":
+                if record.submission_thread_id not in accepted_submission_ids:
+                    await self.state.remove_submission(record.submission_thread_id)
+                continue
+            if (
+                record.status in {"pending", "awaiting_testing"}
+                and record.tracker_message_id is not None
+                and record.tracker_message_id not in live_tracker_message_ids
+            ):
+                await self.state.remove_submission(record.submission_thread_id)
 
     def _legacy_lines_not_tracked(
         self,
@@ -344,9 +394,13 @@ class SubmissionTrackerService:
 
     def _summary_line(self, record: TrackedSubmission) -> str:
         guild_id = self.bot.guilds[0].id if self.bot.guilds else "@me"
-        submission_url = record.submission_url or f"https://discord.com/channels/{guild_id}/{record.submission_thread_id}"
+        submission_url = record.submission_url or (
+            f"https://discord.com/channels/{guild_id}/{record.submission_thread_id}"
+        )
         line = f"- **[{record.title}]({submission_url})**"
         if record.tracker_thread_id is not None:
-            discussion_url = record.tracker_thread_url or f"https://discord.com/channels/{guild_id}/{record.tracker_thread_id}"
+            discussion_url = record.tracker_thread_url or (
+                f"https://discord.com/channels/{guild_id}/{record.tracker_thread_id}"
+            )
             line += f" - {discussion_url}"
         return f"{line}\n"

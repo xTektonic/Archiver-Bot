@@ -24,12 +24,8 @@ class SubmissionsCog(commands.Cog):
         after_tags = {tag.id for tag in after.applied_tags}
         added = after_tags - before_tags
         if before.parent_id == self.bot.settings.channels.submissions:
-            if self.bot.settings.tags.accepted in added:
-                await self.bot.services.tracker.update_status(after, "accepted")
-            elif self.bot.settings.tags.archived in added:
-                await self.bot.services.tracker.update_status(after, "archived")
-            elif self.bot.settings.tags.rejected in added:
-                await self.bot.services.tracker.update_status(after, "rejected")
+            if before_tags != after_tags:
+                await self.bot.services.tracker.reconcile_submission(after)
             elif before.name != after.name:
                 await self.bot.services.tracker.update_status(after, "unknown")
         if before.parent_id in self.bot.settings.channels.managed_forums and added:
