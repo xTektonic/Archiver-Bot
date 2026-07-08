@@ -56,8 +56,7 @@ def create_bot(settings: BotSettings | None = None) -> ArchiverBot:
         await bot.load_extension("cogs.parser")
         if isinstance(services.approvals, ApprovalService):
             await services.approvals.restore_pending_views()
-        if settings.sync_commands:
-            await bot.tree.sync()
+        await bot.tree.sync()
 
     async def on_app_command_error(
         interaction: discord.Interaction, error: app_commands.AppCommandError

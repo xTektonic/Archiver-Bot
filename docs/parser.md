@@ -18,7 +18,7 @@ The parser converts archive post text into JSON files.
 ## Output
 
 ```text
-ARCHIVER_DATA_DIR/parsed/<thread_id>.json
+data/parsed/<thread_id>.json
 ```
 
 ## Behavior

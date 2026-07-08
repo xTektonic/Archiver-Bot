@@ -122,7 +122,6 @@ class CopyText:
 class BotSettings:
     token: str
     data_dir: Path
-    sync_commands: bool
     roles: RoleIds = field(default_factory=RoleIds)
     channels: ChannelIds = field(default_factory=ChannelIds)
     tags: TagIds = field(default_factory=TagIds)
@@ -131,16 +130,10 @@ class BotSettings:
     discord_char_limit: int = 2000
     approval_timeout_seconds: int = 3600
 
-
-def _truthy(value: str | None) -> bool:
-    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
-
-
 def load_settings() -> BotSettings:
     token = os.getenv("DISCORD_BOT_TOKEN", "")
-    data_dir = Path(os.getenv("ARCHIVER_DATA_DIR", "./data")).expanduser()
+    data_dir = Path("data")
     return BotSettings(
         token=token,
         data_dir=data_dir,
-        sync_commands=_truthy(os.getenv("ARCHIVER_SYNC_COMMANDS")),
     )

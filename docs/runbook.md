@@ -4,7 +4,7 @@
 
 1. Confirm `DISCORD_BOT_TOKEN`.
 2. Confirm dependencies are installed.
-3. Confirm `ARCHIVER_DATA_DIR` is writable.
+3. Confirm `data/` exists or can be created.
 4. Run:
 
    ```powershell
@@ -13,17 +13,15 @@
 
 ## Commands Missing
 
-1. Set `ARCHIVER_SYNC_COMMANDS=true`.
-2. Restart once.
-3. Confirm commands appear.
-4. Set `ARCHIVER_SYNC_COMMANDS=false`.
-5. Restart normally.
+1. Restart the bot.
+2. Confirm commands appear.
+3. If needed, run `/restart sync_commands:true`.
 
 ## State Looks Wrong
 
 1. Stop the bot.
-2. Back up `ARCHIVER_DATA_DIR/state.json`.
-3. Check `ARCHIVER_DATA_DIR/backups/`.
+2. Back up `data/state.json`.
+3. Check `data/backups/`.
 4. Inspect `state.json`.
 5. Restore from backup if needed.
 

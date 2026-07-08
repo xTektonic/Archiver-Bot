@@ -20,8 +20,6 @@ python3 -m venv .venv
 
 ```text
 DISCORD_BOT_TOKEN=<token>
-ARCHIVER_DATA_DIR=/var/lib/archiver-bot
-ARCHIVER_SYNC_COMMANDS=false
 ```
 
 ## Deploy Steps
@@ -29,13 +27,11 @@ ARCHIVER_SYNC_COMMANDS=false
 1. Stop the bot.
 2. Pull the target branch.
 3. Reinstall dependencies if `pyproject.toml` changed.
-4. Confirm `ARCHIVER_DATA_DIR` exists and is writable.
-5. Start once with `ARCHIVER_SYNC_COMMANDS=true` if command definitions changed.
-6. Set `ARCHIVER_SYNC_COMMANDS=false` for normal restarts.
-7. Confirm the online log appears.
+4. Confirm `data/` exists or can be created.
+5. Start the bot.
+6. Confirm the online log appears.
 
 ## Production Notes
 
 - Run one process at a time.
-- Keep runtime state outside the repo.
-- Back up `ARCHIVER_DATA_DIR` before major deployments.
+- Back up `data/` before major deployments.

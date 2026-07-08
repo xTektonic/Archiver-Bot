@@ -20,7 +20,7 @@ src/
 1. `main.py` calls `app.run_bot()`.
 2. `create_bot()` loads settings and builds services.
 3. `setup_hook()` initializes local state and loads cogs.
-4. Commands sync only when `ARCHIVER_SYNC_COMMANDS=true`.
+4. Commands are synced.
 
 ## Rules Of Thumb
 

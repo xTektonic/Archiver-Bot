@@ -5,13 +5,13 @@ Runtime state is local JSON managed by `src/storage/state_store.py`.
 ## Files
 
 ```text
-ARCHIVER_DATA_DIR/
+data/
   state.json
   parsed/
   backups/
 ```
 
-`data/` is ignored for local development. Production should normally use `/var/lib/archiver-bot`.
+`data/` is ignored by Git and should live in the base Archiver-Bot folder.
 
 ## State Contents
 
@@ -35,7 +35,7 @@ ARCHIVER_DATA_DIR/
 - atomically replaces `state.json`
 - creates `parsed/` and `backups/`
 
-Run only one bot process against a state directory.
+Run only one bot process against the data directory.
 
 ## Import Files
 

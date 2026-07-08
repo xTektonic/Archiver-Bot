@@ -53,10 +53,14 @@ class UtilityCog(commands.Cog):
             await respond(interaction, f"Error trying to leave server: {exc}")
 
     @app_commands.command(name="restart", description="Restart the bot process")
+    @app_commands.describe(sync_commands="Sync commands before restarting")
     @app_commands.check(has_moderator_role)
-    async def restart(self, interaction: discord.Interaction) -> None:
+    async def restart(self, interaction: discord.Interaction, sync_commands: bool = False) -> None:
         await defer(interaction)
-        await interaction.followup.send("Restarting...", ephemeral=True)
+        if sync_commands:
+            await self.bot.tree.sync()
+        message = "Commands synced. Restarting..." if sync_commands else "Restarting..."
+        await interaction.followup.send(message, ephemeral=True)
         os.execv(sys.executable, [sys.executable, *sys.argv])
 
     @app_commands.command(name="fetch_links", description="Return attachment links from a message")
