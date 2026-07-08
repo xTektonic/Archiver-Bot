@@ -31,6 +31,12 @@ class TagSelectView(discord.ui.View):
         selected = {int(value) for value in self.select.values}
         tags = [tag for tag in self.thread.parent.available_tags if tag.id in selected]
         await self.thread.edit(applied_tags=tags)
+        client = interaction.client
+        if isinstance(client, ArchiverBot):
+            await client.services.audit.log(
+                f"Tags {format_tag_names(tags)} added",
+                f"To post: {self.thread.jump_url}\nBy: {interaction.user.mention}",
+            )
         await interaction.response.edit_message(content="Tags set.", view=None)
 
 
@@ -104,6 +110,10 @@ class ManagementCog(commands.Cog):
             await respond(interaction, "Invalid tag name.")
             return
         await interaction.channel.edit(applied_tags=[tag])
+        await self.bot.services.audit.log(
+            f"Tag {format_tag_names([tag])} added",
+            f"To post: {interaction.channel.jump_url}\nBy: {interaction.user.mention}",
+        )
         await respond(interaction, f"Set tag to {tag.name}.")
 
     async def pin_message(self, interaction: discord.Interaction, message: discord.Message) -> None:
@@ -135,3 +145,7 @@ class ManagementCog(commands.Cog):
 
 async def setup(bot: ArchiverBot) -> None:
     await bot.add_cog(ManagementCog(bot))
+
+
+def format_tag_names(tags: list[discord.ForumTag]) -> str:
+    return ",  ".join(f"{tag.emoji or ''} {tag.name}".strip() for tag in tags)

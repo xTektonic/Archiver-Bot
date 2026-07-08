@@ -10,7 +10,7 @@ from config.settings import BotSettings
 from models.state import ApprovalType, PendingApproval
 from services.audit import AuditLogService
 from services.state import StateService
-from services.time import is_expired, utc_after_iso, utc_now_iso
+from services.time import is_expired, seconds_until, utc_after_iso, utc_now_iso
 
 
 class ApprovalService:
@@ -137,6 +137,10 @@ class ApprovalService:
             if is_expired(approval.expires_at):
                 approval.status = "expired"
                 await self.state.update_approval(approval)
+                await self._mark_approval_message(
+                    approval,
+                    discord.Embed(title="Timed Out", description="Request expired."),
+                )
                 continue
             channel = self.bot.get_channel(approval.approval_channel_id)
             if channel is None:
@@ -150,7 +154,7 @@ class ApprovalService:
                 continue
             try:
                 message = await channel.fetch_message(approval.approval_message_id)
-                await message.edit(view=ApprovalView(self, approval.approval_id))
+                await message.edit(view=ApprovalView(self, approval.approval_id, timeout=seconds_until(approval.expires_at)))
             except discord.HTTPException:
                 continue
 
@@ -164,9 +168,45 @@ class ApprovalService:
         if is_expired(approval.expires_at):
             approval.status = "expired"
             await self.state.update_approval(approval)
+            await self._mark_approval_message(
+                approval,
+                discord.Embed(title="Timed Out", description="Request expired."),
+            )
             await interaction.response.send_message("This approval has expired.", ephemeral=True)
             return None
         return approval
+
+    async def expire(self, approval_id: str) -> None:
+        approval = (await self.state.get()).pending_approvals.get(approval_id)
+        if approval is None or approval.status != "pending":
+            return
+        approval.status = "expired"
+        await self.state.update_approval(approval)
+        await self._mark_approval_message(
+            approval,
+            discord.Embed(title="Timed Out", description="Request expired."),
+        )
+
+    async def _mark_approval_message(
+        self,
+        approval: PendingApproval,
+        embed: discord.Embed,
+    ) -> None:
+        if approval.approval_channel_id is None or approval.approval_message_id is None:
+            return
+        channel = self.bot.get_channel(approval.approval_channel_id)
+        if channel is None:
+            try:
+                channel = await self.bot.fetch_channel(approval.approval_channel_id)
+            except discord.HTTPException:
+                return
+        if not isinstance(channel, discord.TextChannel | discord.Thread):
+            return
+        try:
+            message = await channel.fetch_message(approval.approval_message_id)
+            await message.edit(embed=embed, view=None)
+        except discord.HTTPException:
+            return
 
     def _has_approver_role(self, user: discord.abc.User) -> bool:
         roles = getattr(user, "roles", [])
@@ -223,10 +263,13 @@ class ApprovalService:
 
 
 class ApprovalView(discord.ui.View):
-    def __init__(self, service: ApprovalService, approval_id: str):
-        super().__init__(timeout=None)
+    def __init__(self, service: ApprovalService, approval_id: str, timeout: float | None = None):
+        super().__init__(timeout=timeout or service.settings.approval_timeout_seconds)
         self.service = service
         self.approval_id = approval_id
+
+    async def on_timeout(self) -> None:
+        await self.service.expire(self.approval_id)
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green)
     async def approve_button(

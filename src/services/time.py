@@ -13,3 +13,7 @@ def utc_after_iso(seconds: int) -> str:
 
 def is_expired(iso_timestamp: str) -> bool:
     return datetime.fromisoformat(iso_timestamp) <= datetime.now(UTC)
+
+
+def seconds_until(iso_timestamp: str) -> float:
+    return max(0.0, (datetime.fromisoformat(iso_timestamp) - datetime.now(UTC)).total_seconds())

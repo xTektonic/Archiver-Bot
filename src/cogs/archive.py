@@ -58,9 +58,21 @@ class SendModal(discord.ui.Modal, title="Send Message"):
             embed=embed,
             allowed_mentions=discord.AllowedMentions.none(),
         )
+        details = [
+            f"By: {interaction.user.mention}",
+            f"In: {getattr(self.target_channel, 'jump_url', '')}",
+            f"Content: {self.message_text.value[:900]}",
+        ]
+        if embed is not None:
+            details.extend(
+                [
+                    f"Embed title: {embed.title or ''}",
+                    f"Embed description: {(embed.description or '')[:900]}",
+                ]
+            )
         await self.bot.services.audit.log(
             "Message sent via bot",
-            f"By: {interaction.user.mention}\nIn: {getattr(self.target_channel, 'jump_url', '')}",
+            "\n".join(details),
         )
         await interaction.followup.send("Message successfully sent.", ephemeral=True)
 
@@ -176,14 +188,23 @@ class PublishModal(discord.ui.Modal, title="Publish Post"):
         if not isinstance(archive_channel, discord.ForumChannel):
             await interaction.followup.send("The selected channel is not a forum.", ephemeral=True)
             return
-        thread = await self.bot.services.archive.publish(
-            interaction.channel,
-            archive_channel,
-            self.post_title.value,
-            self.post_content.value,
-            interaction.user,
-            announce=self.announce.values[0] == "true",
-        )
+        try:
+            thread = await self.bot.services.archive.publish(
+                interaction.channel,
+                archive_channel,
+                self.post_title.value,
+                self.post_content.value,
+                interaction.user,
+                announce=self.announce.values[0] == "true",
+            )
+        except Exception as exc:
+            await interaction.followup.send(f"Error publishing post: {exc}", ephemeral=True)
+            await self.bot.services.audit.log(
+                "Error publishing post",
+                f"{exc}\nBy: {interaction.user.mention}",
+                colour=discord.Color.red(),
+            )
+            return
         if (
             isinstance(interaction.channel, discord.Thread)
             and interaction.channel.parent_id == self.bot.settings.channels.submissions
@@ -230,7 +251,16 @@ class AppendModal(discord.ui.Modal, title="Append to Post"):
         if not isinstance(thread, discord.Thread):
             await interaction.followup.send("The selected channel is not a thread.", ephemeral=True)
             return
-        message = await self.bot.services.archive.append(thread, self.post_content.value, interaction.user)
+        try:
+            message = await self.bot.services.archive.append(thread, self.post_content.value, interaction.user)
+        except Exception as exc:
+            await interaction.followup.send(f"Error appending post: {exc}", ephemeral=True)
+            await self.bot.services.audit.log(
+                "Error appending post",
+                f"{exc}\nBy: {interaction.user.mention}",
+                colour=discord.Color.red(),
+            )
+            return
         await interaction.followup.send(f"Post appended: {message.jump_url}", ephemeral=True)
 
 
@@ -246,11 +276,20 @@ class AppendPrompt(discord.ui.View):
         self, interaction: discord.Interaction, _button: discord.ui.Button
     ) -> None:
         await interaction.response.defer(ephemeral=True)
-        message = await self.bot.services.archive.append(
-            self.thread,
-            self.draft.content,
-            interaction.user,
-        )
+        try:
+            message = await self.bot.services.archive.append(
+                self.thread,
+                self.draft.content,
+                interaction.user,
+            )
+        except Exception as exc:
+            await interaction.followup.send(f"Error appending post: {exc}", ephemeral=True)
+            await self.bot.services.audit.log(
+                "Error appending post",
+                f"{exc}\nBy: {interaction.user.mention}",
+                colour=discord.Color.red(),
+            )
+            return
         await interaction.followup.send(f"Post appended: {message.jump_url}", ephemeral=True)
 
     @discord.ui.button(label="Different thread", style=discord.ButtonStyle.gray)
