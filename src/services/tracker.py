@@ -171,7 +171,10 @@ class SubmissionTrackerService:
             "## Pending Archival",
             groups["accepted"],
             sent_ids,
-            legacy_lines=bot_state.accepted_submission_entries,
+            legacy_lines=self._legacy_lines_not_tracked(
+                bot_state.accepted_submission_entries,
+                groups["accepted"],
+            ),
         )
         await self.state.set_tracker_summary_messages(sent_ids)
 
@@ -243,6 +246,14 @@ class SubmissionTrackerService:
             ):
                 entries.append(f"- **[{thread.name}]({thread.jump_url})**")
         await self.state.set_accepted_submission_entries(entries)
+
+    def _legacy_lines_not_tracked(
+        self,
+        legacy_lines: list[str],
+        records: list[TrackedSubmission],
+    ) -> list[str]:
+        tracked_ids = {str(record.submission_thread_id) for record in records}
+        return [line for line in legacy_lines if not any(thread_id in line for thread_id in tracked_ids)]
 
     async def _finalize_tracker_message(self, record: TrackedSubmission) -> None:
         if record.tracker_message_id is None:

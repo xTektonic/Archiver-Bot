@@ -51,6 +51,7 @@ class ParserService:
     async def parse_archive(self, guild: discord.Guild) -> ParseResult:
         total = 0
         errors: list[ParseDiagnostic] = []
+        self.clear_output_dir()
         for channel in guild.channels:
             if (
                 isinstance(channel, discord.ForumChannel)
@@ -98,6 +99,11 @@ class ParserService:
             return []
         except Exception as exc:
             return [ParseDiagnostic(thread.id, thread.name, f"{type(exc).__name__}: {exc}")]
+
+    def clear_output_dir(self) -> None:
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        for path in self.output_dir.glob("*.json"):
+            path.unlink()
 
     def parse_text(self, text: str) -> dict[str, Any]:
         return cast(dict[str, Any], message_parse(text.split("\n")))

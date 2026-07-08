@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from app import ArchiverBot
 from cogs.management import TagSelectView
+from services.audit import diff_block
 from services.checks import has_higher_role
 from services.safe_discord import respond
 
@@ -95,6 +96,7 @@ class EditMessageModal(discord.ui.Modal, title="Edit Message"):
             self.add_item(self.embed_text)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        original_embeds = [discord.Embed.from_dict(embed.to_dict()) for embed in self.rich_embeds]
         embeds: list[discord.Embed] = []
         if self.rich_embeds:
             for index, embed in enumerate(self.rich_embeds):
@@ -108,11 +110,30 @@ class EditMessageModal(discord.ui.Modal, title="Edit Message"):
             embeds=embeds,
             allowed_mentions=discord.AllowedMentions.none(),
         )
-        await self.bot.services.audit.log(
-            "Bot message edited",
-            f"Message: {self.message.jump_url}\nBy: {interaction.user.mention}",
+        log_embed = discord.Embed(
+            title="Bot message edited",
+            description=f"Message: {self.message.jump_url}\nBy: {interaction.user.mention}",
             colour=discord.Color.yellow(),
         )
+        content_diff = diff_block(self.original_content, self.message_text.value)
+        if content_diff:
+            log_embed.add_field(name="Content Change", value=f"```ansi\n{content_diff}\n```", inline=False)
+        if original_embeds and embeds:
+            title_diff = diff_block(original_embeds[0].title, embeds[0].title)
+            description_diff = diff_block(original_embeds[0].description, embeds[0].description)
+            if title_diff:
+                log_embed.add_field(
+                    name="Embed Title Change",
+                    value=f"```ansi\n{title_diff}\n```",
+                    inline=False,
+                )
+            if description_diff:
+                log_embed.add_field(
+                    name="Embed Description Change",
+                    value=f"```ansi\n{description_diff}\n```",
+                    inline=False,
+                )
+        await self.bot.services.audit.log_embed(log_embed)
         await interaction.response.send_message("Message successfully edited.", ephemeral=True)
 
 

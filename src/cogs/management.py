@@ -124,7 +124,13 @@ class ManagementCog(commands.Cog):
 
     def _format_job(self, result: JobResult) -> str:
         mode = "dry run" if result.dry_run else "applied"
-        return f"{result.name}: {result.changed} change(s), {mode}."
+        content = f"{result.name}: {result.changed} change(s), {mode}."
+        if not result.messages:
+            return content
+        details = "\n".join(f"- {message}" for message in result.messages)
+        if len(content) + len(details) + 2 > self.bot.settings.discord_char_limit:
+            details = details[: self.bot.settings.discord_char_limit - len(content) - 8] + "\n..."
+        return f"{content}\n{details}"
 
 
 async def setup(bot: ArchiverBot) -> None:

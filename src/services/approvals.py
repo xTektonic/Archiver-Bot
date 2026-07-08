@@ -79,17 +79,23 @@ class ApprovalService:
 
         await interaction.response.defer(ephemeral=True)
         try:
+            result_details = ""
             if approval.type == "delete_message":
-                await self._delete_message(approval)
+                result_details = await self._delete_message(approval)
             elif approval.type == "delete_thread":
-                await self._delete_thread(approval)
+                result_details = await self._delete_thread(approval)
             elif approval.type == "edit_thread_title":
-                await self._edit_thread_title(approval)
+                result_details = await self._edit_thread_title(approval)
             approval.status = "approved"
             approval.approver_id = interaction.user.id
             log = await self.audit.log(
                 "Approval completed",
-                f"Type: {approval.type}\nRequester: <@{approval.requester_id}>\nApprover: {interaction.user.mention}",
+                (
+                    f"Type: {approval.type}\n"
+                    f"Requester: <@{approval.requester_id}>\n"
+                    f"Approver: {interaction.user.mention}"
+                    f"{result_details}"
+                ),
                 colour=discord.Color.green(),
             )
             approval.result_log_url = log.jump_url if log else None
@@ -166,21 +172,30 @@ class ApprovalService:
         roles = getattr(user, "roles", [])
         return any(role.id in self.settings.roles.higher for role in roles)
 
-    async def _delete_message(self, approval: PendingApproval) -> None:
+    async def _delete_message(self, approval: PendingApproval) -> str:
         if approval.target_channel_id is None or approval.target_message_id is None:
             raise ValueError("delete_message approval is missing target IDs")
         channel = await self.bot.fetch_channel(approval.target_channel_id)
         if not isinstance(channel, discord.TextChannel | discord.Thread):
             raise ValueError("delete_message approval target is not a message channel")
         message = await channel.fetch_message(approval.target_message_id)
+        message_content = message.content
+        if message.embeds:
+            first_embed = message.embeds[0]
+            if first_embed.title:
+                message_content += f"\nTitle: {first_embed.title}"
+            if first_embed.description:
+                message_content += f"\nDescription: {first_embed.description}"
         await message.delete()
+        return f"\nMessage: {message.jump_url}\nContent: {message_content[:1500]}"
 
-    async def _delete_thread(self, approval: PendingApproval) -> None:
+    async def _delete_thread(self, approval: PendingApproval) -> str:
         if approval.target_thread_id is None:
             raise ValueError("delete_thread approval is missing target thread ID")
         thread = await self.bot.fetch_channel(approval.target_thread_id)
         if not isinstance(thread, discord.Thread):
             raise ValueError("delete_thread approval target is not a thread")
+        details = f"\nThread: {thread.name}\nIn: {thread.parent.jump_url if thread.parent else ''}"
         for parsed_file in (
             self.settings.data_dir / "parsed" / f"{thread.id}.json",
             Path("parsed") / f"{thread.id}.json",
@@ -194,14 +209,17 @@ class ApprovalService:
                     colour=discord.Color.orange(),
                 )
         await thread.delete()
+        return details
 
-    async def _edit_thread_title(self, approval: PendingApproval) -> None:
+    async def _edit_thread_title(self, approval: PendingApproval) -> str:
         if approval.target_thread_id is None or approval.proposed_title is None:
             raise ValueError("edit_thread_title approval is missing target data")
         thread = await self.bot.fetch_channel(approval.target_thread_id)
         if not isinstance(thread, discord.Thread):
             raise ValueError("edit_thread_title approval target is not a thread")
+        old_name = thread.name
         await thread.edit(name=approval.proposed_title, archived=False)
+        return f"\nThread: {thread.jump_url}\nFrom: {old_name}\nTo: {approval.proposed_title}"
 
 
 class ApprovalView(discord.ui.View):
