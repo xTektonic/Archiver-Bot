@@ -143,22 +143,26 @@ class ApprovalService:
         if not self._has_approver_role(interaction.user):
             await interaction.response.send_message("You do not have approval permissions.", ephemeral=True)
             return
+        await interaction.response.defer(ephemeral=True)
         approval.status = "rejected"
         approval.approver_id = interaction.user.id
         await self.state.update_approval(approval)
         await self.state.remove_approval(approval.approval_id)
         try:
-            await interaction.response.edit_message(
+            if interaction.message is None:
+                await interaction.followup.send("Rejected.", ephemeral=True)
+                return
+            await interaction.followup.edit_message(
+                message_id=interaction.message.id,
                 embed=discord.Embed(title="Rejected", description="Request rejected."),
                 view=None,
             )
         except discord.HTTPException as exc:
             await self.audit.log("Approval rejection update failed", str(exc), colour=discord.Color.orange())
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    f"Could not update approval message: {exc}",
-                    ephemeral=True,
-                )
+            await interaction.followup.send(
+                f"Could not update approval message: {exc}",
+                ephemeral=True,
+            )
             return
 
     async def restore_pending_views(self) -> None:
@@ -231,13 +235,14 @@ class ApprovalService:
             await interaction.response.send_message("This approval is no longer pending.", ephemeral=True)
             return None
         if is_expired(approval.expires_at):
+            await interaction.response.defer(ephemeral=True)
             approval.status = "expired"
             await self.state.remove_approval(approval.approval_id)
             await self._mark_approval_message(
                 approval,
                 discord.Embed(title="Timed Out", description="Request expired."),
             )
-            await interaction.response.send_message("This approval has expired.", ephemeral=True)
+            await interaction.followup.send("This approval has expired.", ephemeral=True)
             return None
         return approval
 

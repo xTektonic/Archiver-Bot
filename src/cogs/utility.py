@@ -157,28 +157,30 @@ class UtilityCog(commands.Cog):
     @app_commands.command(name="fetch_links", description="Return attachment links from a message")
     @app_commands.check(has_higher_role)
     async def fetch_links(self, interaction: discord.Interaction, message_id: str) -> None:
+        await defer(interaction)
         try:
             message = await interaction.channel.fetch_message(int(message_id))
             links = [f"- <{attachment.url.split('?')[0]}>" for attachment in message.attachments]
-            await respond(
-                interaction,
+            await interaction.followup.send(
                 "The selected message has no attachments."
                 if not links
                 else "Attachment links:\n" + "\n".join(links),
+                ephemeral=True,
             )
         except Exception as exc:
-            await respond(interaction, f"Error while running the command: {exc}")
+            await interaction.followup.send(f"Error while running the command: {exc}", ephemeral=True)
 
     @app_commands.command(name="servers", description="Send the list of other archive servers")
     @app_commands.check(has_moderator_role)
     async def servers(self, interaction: discord.Interaction) -> None:
+        await defer(interaction)
         embed = discord.Embed(
             title="Other Archive Servers",
             description=OTHER_ARCHIVES,
             color=discord.Color.light_embed(),
         )
         await interaction.channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
-        await respond(interaction, "Embed sent.")
+        await interaction.followup.send("Embed sent.", ephemeral=True)
 
     @app_commands.command(name="help", description="Send the Archiver Bot command list")
     @app_commands.check(has_staff_role)

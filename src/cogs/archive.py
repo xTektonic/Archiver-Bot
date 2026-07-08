@@ -381,11 +381,6 @@ class ArchiveCog(commands.Cog):
             return
         last_thread = interaction.client.get_channel(last_thread_id)
         if not isinstance(last_thread, discord.Thread):
-            try:
-                last_thread = await interaction.client.fetch_channel(last_thread_id)
-            except discord.HTTPException:
-                last_thread = None
-        if not isinstance(last_thread, discord.Thread):
             await interaction.response.send_modal(AppendModal(self.bot, message))
             return
         await interaction.response.send_message(
@@ -436,8 +431,9 @@ class ArchiveCog(commands.Cog):
             if role.value == 1
             else self.bot.settings.roles.submitter
         )
+        await defer(interaction)
         await self.bot.services.archive.grant_role(interaction.guild, member, role_id)
-        await respond(interaction, "Role granted.")
+        await interaction.followup.send("Role granted.", ephemeral=True)
 
     def _is_archive_thread(self, thread: discord.Thread) -> bool:
         parent = thread.parent

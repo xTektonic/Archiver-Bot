@@ -131,8 +131,9 @@ class ManagementCog(commands.Cog):
         if interaction.user.id != message.channel.owner_id:
             await respond(interaction, "You can only pin messages in your own post.")
             return
+        await defer(interaction)
         await message.pin()
-        await respond(interaction, "Message pinned.")
+        await interaction.followup.send("Message pinned.", ephemeral=True)
 
     async def _log_job(self, result: JobResult) -> None:
         await self.bot.services.audit.log(result.name, self._format_job(result))
