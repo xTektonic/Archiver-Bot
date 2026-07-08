@@ -33,11 +33,10 @@ RANDOM_REPLIES = [
     "​      is        ",
     "I love you too <3",
     "I'm literally in the walls",
-    "Have you tried turning the farm off and on again?",
-    "Archiving my patience as we speak",
+    "Have you tried turning it off and on again?",
     "I was promised snacks for this",
-    "New ping just dropped",
-    "Bold of you to assume I am awake",
+    "I'm off the clock",
+    "Bold of you to assume I care",
 ]
 
 
