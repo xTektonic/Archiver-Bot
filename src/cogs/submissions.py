@@ -6,7 +6,7 @@ from discord.ext import commands
 
 from app import ArchiverBot
 from services.checks import has_higher_role
-from services.safe_discord import defer, respond
+from services.safe_discord import defer
 
 
 class SubmissionsCog(commands.Cog):
@@ -41,14 +41,15 @@ class SubmissionsCog(commands.Cog):
     @app_commands.command(name="track", description="Add the current submission post to the tracker")
     @app_commands.check(has_higher_role)
     async def track(self, interaction: discord.Interaction) -> None:
+        await defer(interaction)
         if (
             isinstance(interaction.channel, discord.Thread)
             and interaction.channel.parent_id == self.bot.settings.channels.submissions
         ):
             await self.bot.services.tracker.track_thread(interaction.channel)
-            await respond(interaction, "Post tracked.")
+            await interaction.followup.send("Post tracked.", ephemeral=True)
         else:
-            await respond(interaction, "The current thread is not a submission post.")
+            await interaction.followup.send("The current thread is not a submission post.", ephemeral=True)
 
     async def _announce_added_tags(self, thread: discord.Thread, tag_ids: set[int]) -> None:
         tags = [tag for tag in thread.applied_tags if tag.id in tag_ids]

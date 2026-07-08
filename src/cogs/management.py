@@ -7,7 +7,7 @@ from discord.ext import commands, tasks
 from app import ArchiverBot
 from services.checks import has_higher_role
 from services.maintenance import JobResult
-from services.safe_discord import respond
+from services.safe_discord import defer, respond
 
 
 class TagSelectView(discord.ui.View):
@@ -70,14 +70,16 @@ class ManagementCog(commands.Cog):
     @app_commands.command(name="close_resolved", description="Close solved/rejected/archived posts")
     @app_commands.check(has_higher_role)
     async def close_resolved(self, interaction: discord.Interaction, dry_run: bool = False) -> None:
+        await defer(interaction)
         result = await self.bot.services.maintenance.close_resolved(interaction.guild, dry_run=dry_run)
-        await respond(interaction, self._format_job(result))
+        await interaction.followup.send(self._format_job(result), ephemeral=True)
 
     @app_commands.command(name="open_archived", description="Open archived archive posts")
     @app_commands.check(has_higher_role)
     async def open_archived(self, interaction: discord.Interaction, dry_run: bool = False) -> None:
+        await defer(interaction)
         result = await self.bot.services.maintenance.open_archived(interaction.guild, dry_run=dry_run)
-        await respond(interaction, self._format_job(result))
+        await interaction.followup.send(self._format_job(result), ephemeral=True)
 
     @app_commands.command(name="tag_selector", description="Set forum post tags")
     async def tag_selector(self, interaction: discord.Interaction, given_tag: str = "") -> None:
