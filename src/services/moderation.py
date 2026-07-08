@@ -92,14 +92,27 @@ class ModerationService:
             delete_after=20,
             allowed_mentions=discord.AllowedMentions(users=True),
         )
-        await self.audit.log(
-            "No-chat user caught",
-            f"User: {message.author.mention}\nChannel: {message.channel.jump_url}\nContent: {content}",
-            colour=discord.Color.red(),
-        )
         logs = self.bot.get_channel(self.settings.channels.log)
-        if isinstance(logs, discord.abc.Messageable) and attachments:
-            await logs.send(files=attachments)
+        if isinstance(logs, discord.abc.Messageable):
+            await logs.send(
+                embed=discord.Embed(
+                    title="No-chat user caught",
+                    description=(
+                        f"User: {message.author.mention}\n"
+                        f"Channel: {message.channel.jump_url}\n"
+                        f"Content: {content}"
+                    ),
+                    colour=discord.Color.red(),
+                ),
+                files=attachments,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+        else:
+            await self.audit.log(
+                "No-chat user caught",
+                f"User: {message.author.mention}\nChannel: {message.channel.jump_url}\nContent: {content}",
+                colour=discord.Color.red(),
+            )
         return True
 
 

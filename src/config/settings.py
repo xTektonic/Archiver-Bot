@@ -112,9 +112,13 @@ class CopyText:
         "- Please be patient. The archival team will review this post as soon as possible."
     )
     help_forum_prompt: str = (
-        "- The submitter can mark posts as solved by using `/tag_selector`.\n"
-        "- Refer to the guide for faster and better answers.\n"
-        "- Please be patient and polite. Helpers are volunteers."
+        "- \u2705 The submitter of this question can mark posts as solved by using "
+        "`/tag_selector` and selecting `\u2705 Solved`.\n"
+        "- \U0001f4d6 Refer to the [guide]"
+        "(https://discord.com/channels/1161803566265143306/1378040485133680772) "
+        "to get faster and better answers to your questions. Add any relevant "
+        "information to your post.\n"
+        "- \u231a Please be patient and polite. Remember that all helpers are volunteers."
     )
 
 
