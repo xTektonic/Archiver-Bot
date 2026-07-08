@@ -53,6 +53,7 @@ class ApprovalService:
         if channel is None:
             channel = await self.bot.fetch_channel(self.settings.channels.archiver_chat)
         if isinstance(channel, discord.abc.Messageable):
+            await self.state.put_approval(approval)
             view = ApprovalView(self, approval.approval_id)
             message = await channel.send(
                 embed=discord.Embed(title="Approval request", description=description),
@@ -63,7 +64,7 @@ class ApprovalService:
             approval.approval_channel_id = getattr(message.channel, "id", None)
         else:
             raise RuntimeError("Approval channel is not messageable.")
-        await self.state.put_approval(approval)
+        await self.state.update_approval(approval)
         return approval
 
     async def approve(self, interaction: discord.Interaction, approval_id: str) -> None:
@@ -128,11 +129,23 @@ class ApprovalService:
             return
         approval.status = "rejected"
         approval.approver_id = interaction.user.id
+        try:
+            await interaction.response.edit_message(
+                embed=discord.Embed(title="Rejected", description="Request rejected."),
+                view=None,
+            )
+        except discord.HTTPException as exc:
+            approval.status = "pending"
+            approval.approver_id = None
+            await self.state.update_approval(approval)
+            await self.audit.log("Approval rejection update failed", str(exc), colour=discord.Color.orange())
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    f"Could not update approval message: {exc}",
+                    ephemeral=True,
+                )
+            return
         await self.state.remove_approval(approval.approval_id)
-        await interaction.response.edit_message(
-            embed=discord.Embed(title="Rejected", description="Request rejected."),
-            view=None,
-        )
 
     async def restore_pending_views(self) -> None:
         bot_state = await self.state.get()
