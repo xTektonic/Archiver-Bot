@@ -254,7 +254,7 @@ class SubmissionTrackerService:
                 return
 
     def _record_from_tracker_message(self, message: discord.Message) -> TrackedSubmission | None:
-        title_match = re.match(r"## \[(?P<title>[^\]]+)\]\((?P<url>[^)]+)\)", message.content)
+        title_match = re.match(r"## \[(?P<title>.+)\]\((?P<url>[^)]+)\)", message.content.splitlines()[0])
         if title_match is None:
             return None
         thread_id = self._last_snowflake(title_match.group("url"))

@@ -103,7 +103,7 @@ class ManagementCog(commands.Cog):
             (
                 tag
                 for tag in interaction.channel.parent.available_tags
-                if tag.name.lower() == given_tag.lower()
+                if tag.name.lower() == given_tag.strip().lower()
             ),
             None,
         )
