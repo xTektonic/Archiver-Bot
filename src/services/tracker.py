@@ -209,6 +209,7 @@ class SubmissionTrackerService:
 
     async def _import_tracker_messages(self, tracker_channel: discord.TextChannel) -> set[int]:
         bot_state = await self.state.get()
+        pinned_ids = {message.id for message in await tracker_channel.pins()}
         summary_ids = set(bot_state.tracker_summary_message_ids)
         known_ids = {
             record.tracker_message_id
@@ -217,7 +218,7 @@ class SubmissionTrackerService:
         }
         live_tracker_message_ids: set[int] = set()
         async for message in tracker_channel.history(limit=None, oldest_first=True):
-            if message.id in summary_ids:
+            if message.id in summary_ids or message.id in pinned_ids:
                 continue
             if not message.content.startswith("## ["):
                 continue
